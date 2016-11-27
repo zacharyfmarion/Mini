@@ -2,17 +2,18 @@
 
 # For better error messages
 require 'colorize'
+require "babel_bridge"
 
 class Parser < BabelBridge::Parser
 
   # Holds all of the variables of the program
   # Several variables are provided by default:
   #  - argv -> Command line args provided to the file
-  #  - is_main -> Whether or not we are importing the file as a module
+  #  - is_module -> Whether or not we are importing the file as a module
   def initialize(store: {}, is_module: false)
     @store ||= store.merge({
-      '__argv' => MiniParser.make_var(ARGV, false),
-      '__name' => MiniParser.make_var(is_module ? "module" : "main", false)
+      '__argv' => Parser.make_var(ARGV, false),
+      '__name' => Parser.make_var(is_module ? "module" : "main", false)
     })
   end
 
@@ -32,6 +33,8 @@ class Parser < BabelBridge::Parser
   def stack; @stack ||= [] end
 
   # Function locals
+  # TODO: GET RID OF THIS AND JUST USE THE STACK...not sure how to get rid of this
+  # without breaking simple decorators (see files/decorators.mini)
   def locals; @locals ||= {} end
 
   def locals=(locals)
@@ -82,7 +85,7 @@ class Parser < BabelBridge::Parser
 
   # Add a variable to the store
   def add_var(key, ret, mutable)
-    var = MiniParser.make_var(ret, mutable)
+    var = Parser.make_var(ret, mutable)
     if self.stack.length > 0 then
       self.stack[-1][key] = var
     else

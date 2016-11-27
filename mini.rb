@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
 
-require "babel_bridge"
 require_relative "./Parser"
 require "pp"
 
@@ -67,13 +66,30 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Importing basically means you just evaluate the file in another env
-  rule :import, "import", :string do
+  rule :import, "import", :string, :import_alias? do
     def evaluate
-      mod = read_file(string.evaluate)  
+      # We need to find the basepath relative to the file we are executing (if it is in
+      # fact a file
+      basepath = ""
+      if ARGV.length > 0 && ARGV[0] != "-i" && ARGV[0] != "--interactive"
+        basepath = File.dirname(ARGV[0])
+      end
+      mod = read_file("." + basepath + string.evaluate[1..-1])  
+      Parser.error("File #{string.evaluate} does not exist", self, IOError) unless mod
       p = MiniParser.new(is_module: true)
       p.parse(mod).evaluate
-      parser.store = parser.store.merge(p.exports)
+      if import_alias
+        parser.store[import_alias.evaluate] = Parser.make_var(p.exports, false)
+      else
+        parser.store = parser.store.merge(p.exports)
+      end
       nil
+    end
+  end
+
+  rule :import_alias, "as", :lvalue do
+    def evaluate
+      lvalue.evaluate 
     end
   end
 
@@ -83,7 +99,7 @@ class MiniParser < Parser
       # the string of the variable name in the expression
       name = matches[2].get_name()
       expr = matches[2].evaluate
-      parser.exports[name] = MiniParser.make_var(expr, true)
+      parser.exports[name] = Parser.make_var(expr, false)
     end
   end
   
@@ -179,7 +195,7 @@ class MiniParser < Parser
         temp = parser.store[var]
       end
       while i < arr.length
-        parser.store[var] = MiniParser.make_var(arr[i])
+        parser.store[var] = Parser.make_var(arr[i])
         codeblock.evaluate
         i += 1
       end
@@ -192,7 +208,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :raise, :len, :to_str, :to_num)
+  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_num)
 
   # A way to print a line
   rule :print, "print", "(", :expr, ")" do
@@ -212,6 +228,10 @@ class MiniParser < Parser
     def evaluate
       raise string.evaluate
     end
+  end
+
+  rule :eval, "eval", "(", :string, ")" do
+    def evaluate; eval(string.evaluate) end
   end
 
   rule :len, "len", "(", :expr, ")" do
@@ -370,7 +390,7 @@ class MiniParser < Parser
         params.each_with_index do |param, i|
           param_str = param.evaluate
           # Save the arg as a variable in the env
-          parser.stack[-1][param_str] = MiniParser.make_var(args[i])
+          parser.stack[-1][param_str] = Parser.make_var(args[i])
         end
         # Now we actually evaluate the codeblock in the correct env
         ret = codeblock.evaluate
@@ -399,6 +419,7 @@ class MiniParser < Parser
       func = self.get_function
       key = lvalue[0].evaluate
       parser.add_var(key, func, false)
+      func
     end
 
     def get_function
@@ -413,7 +434,7 @@ class MiniParser < Parser
         end
         params.each_with_index do |param, i|
           param_str = param.evaluate
-          parser.stack[-1][param_str] = MiniParser.make_var(args[i])
+          parser.stack[-1][param_str] = Parser.make_var(args[i])
         end
         # print "Calling #{lvalue[0].to_s}. Stack: "
         # pp parser.stack
@@ -437,7 +458,7 @@ class MiniParser < Parser
     def evaluate
       args = expr.map {|tup| tup.evaluate }.compact
       func = variable.evaluate
-      Parser.error("Function '#{variable.get_name}' does not exist", self) unless func != nil
+      # Parser.error("Function '#{variable.get_name}' does not exist", self) unless func == Hash
       parser.locals = func["locals"]
       # puts "CALLING: #{variable.get_name}"
       # puts "FUNCTION: #{func}"
@@ -585,13 +606,10 @@ class MiniParser < Parser
 
 end
 
-def read_file(filepath)
-  file = ""
-  # Let's actually try to parse a json file
-  File.open(filepath).each do |line|
-    file += line
-  end
-  file
+# Function to read a file...returns nil if file doesn't exist
+def read_file(filename)
+  if !File.file?(filename); return nil end
+  File.read(filename)
 end
 
 # If a command line argument is provided then we parse and run the
