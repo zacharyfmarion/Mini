@@ -536,7 +536,13 @@ class MiniParser < Parser
     def evaluate
       mod = lvalue[0].evaluate
       var = lvalue[1].evaluate
-      parser.imports[mod][var]["value"]
+      if !parser.imports.has_key?(mod)
+        Parser.error("Module '#{mod}' does not exist", self)
+      elsif !parser.imports[mod].has_key?(var)
+        Parser.error("Module '#{mod}' does not contain variable '{var}'", self)
+      else 
+        parser.imports[mod][var]["value"]
+      end
     end
   end
   
@@ -549,6 +555,8 @@ class MiniParser < Parser
       var = matches[0].to_s
       if parser.has_var?(var)
         ret = parser.get_var(var)["value"]
+      else 
+        Parser.error("Variable #{var} does not exist", self)
       end
       ret
     end
