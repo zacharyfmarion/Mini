@@ -4,7 +4,7 @@ Hi there! Welcome to the Mini language. A couple of weeks ago I found out about 
 
 ## Setting up
 
-Install the dependencies in the Gemfile with ``. It's way more legit if you make `mini.rb` an executable so go ahead and chmod the crap out of it:
+Install the dependencies in the Gemfile with `bundle install` (run `gem install bundle` if you don't have it already). It's way more legit if you make `mini.rb` an executable so go ahead and chmod the crap out of it:
 
 ```
 chmod 777 mini.rb      <-- Because '777' is always a good idea, right?
