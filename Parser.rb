@@ -27,6 +27,7 @@ class Parser < BabelBridge::Parser
 
   # Exports is a dictionary of things to export to another file
   def exports; @exports ||= {} end
+  def imports; @imports ||= {} end
 
   # The stack stores an array of locals...note that the top of the stack contains
   # a hash of variables that are locally defined. Allows for recursion
@@ -58,6 +59,38 @@ class Parser < BabelBridge::Parser
     end
     raise type.new "\n\n#{msg}\n#{sep}\n#{source}\n#{sep}\n"
 
+  end
+
+  # Read an import string and parse the files contents (if it exists)
+  # node - the import statement node 
+  # argv - the ARGV array for the file being executed (maybe don't need this...)
+  # string - the import string (path to the file)
+  def self.read_import(node, argv, string)
+    basepath = ""
+    if argv.length > 0 && argv[0] != "-i" && argv[0] != "--interactive"
+      basepath = File.dirname(argv[0])
+    end
+    # If there is no extension add the "mini" extension
+    string = File.extname(string) == "" ? string + ".mini" : string
+    # Parsing the file and extracting the exports
+    mod = read_file("./" + basepath + string[1..-1])  
+    Parser.error("File #{string} does not exist", node, IOError) unless mod
+    p = MiniParser.new(is_module: true)
+    p.parse(mod).evaluate
+    p # return the parser class
+  end
+
+  # Get the imports from a parser containing a files exports
+  # p - The parser for the imported file
+  # from_statement - The optional from statement "{ map, reduce } from "
+  def self.get_imports(p, from_statement)
+    exports = {}
+    if from_statement
+      from_statement.evaluate.each do |import_name|
+        exports[import_name] = p.exports[import_name]
+      end
+    else; exports = p.exports end
+    exports
   end
 
   # Get a variable from the store

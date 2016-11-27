@@ -1,0 +1,3 @@
+import { sayHello } from "./exports" as imports
+
+imports::sayHello()

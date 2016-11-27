@@ -31,10 +31,11 @@ syn match MiniFunction /@.*$/
 
 " Types
 syntax keyword MiniType fun decorator
+syntax keyword MiniType ::
 syntax keyword MiniType let mut
 
 " Special
-syntax keyword MiniSpecial export import
+syntax keyword MiniSpecial export import from as
 syn keyword MiniSpecial __argv __name
 
 " Comment

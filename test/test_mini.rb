@@ -335,6 +335,30 @@ class TestMini < Minitest::Test
            '
     # because we have multiple assertions we use I/O to check equality
     assert_output(/20\n0\n/) { MiniParser.new.parse(str2).evaluate }
+    str3 = '
+           import "./test/test_files/export_functions.mini" as mod
+           println(mod::add(10, 10))
+           println(mod::sub(10, 10))
+          '
+    assert_output(/20\n0\n/) { MiniParser.new.parse(str3).evaluate }
+    str4 = '
+           import "./test/test_files/export_functions"
+           println(add(10, 10))
+           println(sub(10, 10))
+          '
+    assert_output(/20\n0\n/) { MiniParser.new.parse(str4).evaluate }
+    str5 = '
+           import { add, sub } from "./test/test_files/export_functions"
+           println(add(10, 10))
+           println(sub(10, 10))
+          '
+    assert_output(/20\n0\n/) { MiniParser.new.parse(str5).evaluate }
+    str6 = '
+           import { add, sub } from "./test/test_files/export_functions" as mod
+           println(mod::add(10, 10))
+           println(mod::sub(10, 10))
+          '
+    assert_output(/20\n0\n/) { MiniParser.new.parse(str5).evaluate }
   end
 
   # ------------------------------------------------------------------------------ #

@@ -66,31 +66,33 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Importing basically means you just evaluate the file in another env
-  rule :import, "import", :string, :import_alias? do
+  rule :import, "import", :from_statement?, :string, :import_alias? do
     def evaluate
       # We need to find the basepath relative to the file we are executing (if it is in
       # fact a file
-      basepath = ""
-      if ARGV.length > 0 && ARGV[0] != "-i" && ARGV[0] != "--interactive"
-        basepath = File.dirname(ARGV[0])
-      end
-      mod = read_file("." + basepath + string.evaluate[1..-1])  
-      Parser.error("File #{string.evaluate} does not exist", self, IOError) unless mod
-      p = MiniParser.new(is_module: true)
-      p.parse(mod).evaluate
+      p = Parser.read_import(self, ARGV, string.evaluate)
+      # if there is a from statement, we only take the required exports
+      imports = Parser.get_imports(p, from_statement)
+      # Import aliasing
       if import_alias
-        parser.store[import_alias.evaluate] = Parser.make_var(p.exports, false)
+        parser.imports[import_alias.evaluate] = imports
       else
-        parser.store = parser.store.merge(p.exports)
+        parser.store = parser.store.merge(imports)
       end
       nil
     end
   end
 
-  rule :import_alias, "as", :lvalue do
+  # Optional part of import (like JS)
+  # import { map, blah } from "./lib/arrays.mini" as arr
+  rule :from_statement, "{", many(:lvalue, ","),"}", "from" do
     def evaluate
-      lvalue.evaluate 
+      lvalue.map {|param| param.to_s }.compact
     end
+  end
+
+  rule :import_alias, "as", :lvalue do
+    def evaluate; lvalue.evaluate end
   end
 
   rule :export, "export", any(:func_statement, :assignment, :variable) do
@@ -102,7 +104,7 @@ class MiniParser < Parser
       parser.exports[name] = Parser.make_var(expr, false)
     end
   end
-  
+ 
   # ------------------------------------------------------------------------------ #
   # ----------------------------- CONTROL FLOW ----------------------------------- #
   # ------------------------------------------------------------------------------ #
@@ -527,11 +529,21 @@ class MiniParser < Parser
       eval(matches[0].to_s)
     end
   end
+
+  rule :variable, any(:import_access, :simple_var)
+
+  rule :import_access, :lvalue, "::", :lvalue do
+    def evaluate
+      mod = lvalue[0].evaluate
+      var = lvalue[1].evaluate
+      parser.imports[mod][var]["value"]
+    end
+  end
   
   # Retreiving the value of a variable. Note that we check both the store for globals
   # and the stack for local variables saved from a function call
   # TODO: Make this prettier
-  rule :variable, /[a-zA-Z_]+/ do
+  rule :simple_var, /[a-zA-Z_]+/ do
     def evaluate
       ret = nil
       var = matches[0].to_s

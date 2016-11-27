@@ -54,5 +54,5 @@ I'm in the process of adding things like decorators and classes, but they're a b
 - [ ] Implement basic libs
 - [ ] Add classes
 - [ ] Add decorators with args (get rid of locals Hash)
-- [ ] Support module import aliasing (`import "./some_module.mini" as blah`)
+- [x] Support module import aliasing (`import "./some_module.mini" as blah`)
 - [ ] Add better error handling (expand on `Parser.error() function`)
