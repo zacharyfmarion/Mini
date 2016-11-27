@@ -38,6 +38,7 @@ class TestMini < Minitest::Test
 
   def test_numbers
     assert_equal(2, MiniParser.new.parse('2').evaluate )
+    assert_equal(2.0, MiniParser.new.parse('2.').evaluate )
   end
 
   def test_strings
@@ -61,6 +62,7 @@ class TestMini < Minitest::Test
     assert_equal(6, MiniParser.new.parse('2 + 4').evaluate )
     # Make sure parentheses work
     assert_equal(30, MiniParser.new.parse('(2 + 4) * 5').evaluate )
+    assert_equal(9, MiniParser.new.parse('1.5 * 6').evaluate )
     # Test for operator precedence
     assert_equal(22, MiniParser.new.parse('2 + 4 * 5').evaluate )
     assert_equal(3, MiniParser.new.parse('(2 * 1 + 10 / 5) - 1').evaluate )
@@ -307,9 +309,11 @@ class TestMini < Minitest::Test
     assert_equal("[1, 2, 3]", MiniParser.new.parse("to_str([1,2,3])").evaluate )
   end
 
-  def test_to_num
-    assert_equal(1, MiniParser.new.parse("to_num(1)").evaluate )
-    assert_equal(10, MiniParser.new.parse('to_num("10")').evaluate )
+  def test_conversions
+    assert_equal(1, MiniParser.new.parse("to_int(1)").evaluate )
+    assert_equal(10, MiniParser.new.parse('to_int("10")').evaluate )
+    assert_equal(1.0, MiniParser.new.parse("to_float(1.0)").evaluate )
+    assert_equal(10.0, MiniParser.new.parse('to_float("10.0")').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #

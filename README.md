@@ -44,4 +44,15 @@ fun main() {
 if (__name == "main") { main() }
 ```
 
-I'm in the process of adding things like decorators and classes, but they're a bit more complicated. In the mean time there are some obvious and gaping wholes in the language - like NO FLOATS AT ALL and for some reason 'true or false' evaluates to false, which kinda blows my mind. Anywho, if you want to mess around with it or simply talk about languages I'm happy to engage! Hope you enjoy!
+I'm in the process of adding things like decorators and classes, but they're a bit more complicated. In the mean time there are some obvious and gaping wholes in the language - like ~~NO FLOATS AT ALL~~ (fixed) and for some reason 'true or false' evaluates to false, which kinda blows my mind. Anywho, if you want to mess around with it or simply talk about languages I'm happy to engage! Hope you enjoy!
+
+## TODO
+
+- [ ] Integrate Travis
+- [x] Add Floats
+- [ ] Fix Arithmetic bugs
+- [ ] Implement basic libs
+- [ ] Add classes
+- [ ] Add decorators with args (get rid of locals Hash)
+- [ ] Support module import aliasing (`import "./some_module.mini" as blah`)
+- [ ] Add better error handling (expand on `Parser.error() function`)

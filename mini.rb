@@ -208,7 +208,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_num)
+  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float)
 
   # A way to print a line
   rule :print, "print", "(", :expr, ")" do
@@ -246,9 +246,15 @@ class MiniParser < Parser
     end
   end
 
-  rule :to_num, "to_num", "(", :expr, ")" do
+  rule :to_int, "to_int", "(", :expr, ")" do
     def evaluate
       expr.evaluate.to_i
+    end
+  end
+
+  rule :to_float, "to_float", "(", :expr, ")" do
+    def evaluate
+      expr.evaluate.to_f
     end
   end
   
@@ -598,9 +604,18 @@ class MiniParser < Parser
     end
   end
 
-  rule :number, /[0-9]+/ do
+  # Number is either a float or int
+  rule :number, any(:float, :int)
+
+  rule :int, /\d+/ do
     def evaluate
       to_s.to_i
+    end
+  end
+
+  rule :float, /\d+\.\d*/ do
+    def evaluate
+      to_s.to_f
     end
   end
 
