@@ -63,7 +63,6 @@ class Parser < BabelBridge::Parser
   # Get a variable from the store
   def get_var(key)
     ret = nil
-    # puts "Stack: #{self.stack.reverse}"
     self.stack.reverse_each do |frame|
       # puts "Searching for #{key} in frame #{frame}"
       if frame.has_key?(key); return frame[key] end
