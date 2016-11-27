@@ -1,14 +1,10 @@
 require "minitest/autorun"
-require_relative "../mini"
+require_relative "../lib/mini"
 
 # Read a file (duh)
-def read_file(filepath)
-  file = ""
-  # Let's actually try to parse a json file
-  File.open(filepath).each do |line|
-    file += line
-  end
-  file
+def read_file(filename)
+  if !File.file?(filename); return nil end
+  File.read(filename)
 end
 
 # LOL the name of the testing framework is MiniTest and the name of the

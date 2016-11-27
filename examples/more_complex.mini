@@ -13,4 +13,4 @@ let main = () => {
 }
 
 # Actually have to run main...no real main function in mini
-main()
+if (__name == "main") { main() }

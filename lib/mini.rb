@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-require_relative "./Parser"
+require_relative "./mini/Parser"
 require "pp"
 
 # TODO: This is a list of things that I want to implement in this language

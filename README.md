@@ -7,10 +7,10 @@ Hi there! Welcome to the Mini language. A couple of weeks ago I found out about 
 Install the dependencies in the Gemfile with `bundle install` (run `gem install bundle` if you don't have it already). It's way more legit if you make `mini.rb` an executable so go ahead and chmod the crap out of it:
 
 ```
-chmod 777 mini.rb      <-- Because '777' is always a good idea, right?
+chmod 777 lib/mini.rb      <-- Because '777' is always a good idea, right?
 ```
 
-If you want to run mini as a repl, then run: `./mini.rb -i` or `./mini.rb --interactive`. If you would rather run a file, simply pass in the filename as the first argument (e.g. `./mini.rb test.mini`)
+If you want to run mini as a repl, then run: `lib/mini.rb -i` or `lib/mini.rb --interactive`. If you would rather run a file, simply pass in the filename as the first argument (e.g. `lib/mini.rb test.mini`)
 
 ## Testing
 
@@ -28,17 +28,28 @@ export fun map(arr, func) {
   for (el in arr) { ret << func(el) }
   ret
 }
+
+# Slice an array
+export fun slice(arr, start, end) {
+  let ret = []
+  for (let mut i = start; i < end; i = i + 1) {
+    ret << arr[i] 
+  }
+  ret
+}
 ```
 
 ```mini
 # File: main.mini
 # -------------------------------------------------------
-import "./Arrays.mini"
+import { map } from "./Arrays.mini" as arrays
+# Or import "./Arrays.mini"
+# Or import { map } from "./Arrays.mini"
 
 fun main() {
   let arr = [1,2,3,4,5]
   # Double each element in the array
-  print(map(arr, (el) => { el * 2 }))
+  print(arrays::map(arr, (el) => { el * 2 }))
 }
 
 if (__name == "main") { main() }
