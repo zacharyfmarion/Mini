@@ -1,0 +1,20 @@
+# This is a test of the mini language
+# -----------------------------------
+# Author: Zachary Marion
+# Email: zachary.marion@duke.edu
+
+# This is a generator function that returns another
+# function
+# TODO: 
+# Variables in the stack should inherit from the previous element
+# in the stack...should be simple
+let generator = (op) => {
+  (a, b) => {
+    if (op == 0) { a + b } 
+    else { a - b }
+  }
+}
+
+# Get the function
+let func = generator(0)
+print(func(1,2))

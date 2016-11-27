@@ -1,0 +1,87 @@
+# Arrays util functions
+
+# Slice an array
+export fun slice(arr, start, end) {
+  let ret = []
+  for (let mut i = start; i < end; i = i + 1) {
+    ret << arr[i] 
+  }
+  ret
+}
+
+# LOL what an efficient function
+export fun length(arr) {
+  let mut ret = 0
+  for (el in arr) { ret = ret + 1 }
+  ret
+}
+
+# Range function
+export fun range(min, max) {
+  if (min > max) { raise("Max must be greater than or equal to min") }
+  let ret = []
+  for (let mut i = min; i < max; i = i + 1) {
+    ret << i 
+  }
+  ret
+}
+
+# Return an array with a function applied to each element
+export fun map(arr, func) {
+  let ret = []
+  for (el in arr) { ret << func(el) }
+  ret
+}
+
+# Filter...func must return a bool
+export fun filter(arr, func) {
+  let ret = []
+  for (el in arr) {
+    if (func(el)) { ret << el }
+  }
+  ret
+}
+
+# reduce(arr, (a, b) => { a + b })
+export fun reduce(arr, func) {
+  let mut ret = nada 
+  if (length(arr) == 0) { nada }
+  elseif (length(arr) == 1) { ret = arr[0] }
+  else { 
+    ret = arr[0]
+    for (el in slice(arr, 1, length(arr))) { 
+      ret = func(ret, el)
+    }
+  }
+  ret
+}
+
+# Just another way to make a function
+let main = () => {
+  # Testing map
+  let test = [1, 2, 3, 4]  
+  let new = map(test, (a) => { a + 1 })
+  println(new)
+
+  # Testing range
+  println(range(0, 10))
+
+  # Testing length
+  println(length([1,2,3,4]))
+
+  # Testing filter
+  let even = filter(test, (a) => { a % 2 == 0 })
+  println(even)
+
+  # Testing slice
+  println(slice(test, 1, length(test)))
+
+  # Testing reduce
+  let sum = reduce(test, (a, b) => { a + b })
+  println(sum)
+}
+
+# Call the main function if file is not a module
+if (__name == "main") {
+  main()
+}

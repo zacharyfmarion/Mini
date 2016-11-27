@@ -1,0 +1,16 @@
+# This is a test of a more complex mini file
+
+# variable that can be required in another file
+# test_var = 1
+
+# Main function...entry pt into the file
+export let sayHello = () => {
+  print("Hello world")
+}
+
+let main = () => {
+  sayHello()
+}
+
+# Actually have to run main...no real main function in mini
+main()

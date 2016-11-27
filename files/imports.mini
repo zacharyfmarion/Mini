@@ -1,0 +1,3 @@
+import "./exports.mini"
+
+sayHello()

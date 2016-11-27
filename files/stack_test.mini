@@ -1,0 +1,15 @@
+fun nest_a(a) {
+  fun nest_b(b) {
+    fun nest_c(c) {
+      c + b 
+    }
+    nest_c(b)
+  }
+  nest_b(a)
+}
+
+fun main() {
+  println(nest_a(1))
+}
+
+if (__name == "main") { main() }

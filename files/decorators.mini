@@ -1,0 +1,39 @@
+# ------------------------------------------------------------- #
+# ------------------------- DECORATORS ------------------------ #
+# ------------------------------------------------------------- #
+
+# A decorator is essentially a factor for another function that 
+# Modifies its behavior...not the decorator keyword is optional -
+# using fun would work just as well
+# TODO: This currently doesn't work because a function inside
+# Another function can't access variables local to that function...
+# Easy way to fix this would be to ascend up the call stack to look
+# For variables if they do not exist locally...not sure if this is 
+# Correct though (for recusive evaluation). For now I think that's
+# what I will do
+decorator add_one(f) {
+  () => { f() + 1 }
+}
+
+# A decorator that adds "n" to a given functions result
+decorator add(n) {
+  decorator f_wrapper(f) {
+    ()  => { f() + n }
+  }
+}
+
+# Simplest function to test with
+@add_one
+fun simple_decorated() { 1 }
+
+# @add(5)
+fun complex_decorated() { 1 }
+
+fun main() {
+  println(simple_decorated())
+  println(complex_decorated())
+}
+
+# Again only execute if we are not importing as
+# a module
+if (__name == "main") { main() }
