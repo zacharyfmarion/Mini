@@ -53,11 +53,60 @@ class MiniParser < Parser
 
   # A statement is the highest level thing in the language...a program
   # is essentially a group of statements
-  rule :statement, any(:import, :export, :decorator, :func_statement, :codeblock, 
+  rule :statement, any(:import, :export, :decorator, :class_statement, :func_statement, :codeblock, 
                        :comment, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
                        :array_push, :assignment, :expr) do
     def evaluate
       matches[0].evaluate
+    end
+  end
+                       
+  # ------------------------------------------------------------------------------ #
+  # ----------------------------------- HELPERS ---------------------------------- #
+  # ------------------------------------------------------------------------------ #
+
+  # Helper for parameters
+  rule :arguments, "(", many?(:expr, ","), ")" do 
+    def evaluate
+      expr.map {|arg| arg.evaluate }.compact
+    end
+  end
+
+  rule :parameters, "(", many?(:lvalue, ","), ")" do 
+    def evaluate
+      lvalue.map {|param| param.evaluate }.compact
+    end
+  end
+
+  # ------------------------------------------------------------------------------ #
+  # ------------------------------- CLASSES -------------------------------------- #
+  # ------------------------------------------------------------------------------ #
+
+  # This is gonna be quite the pain...you need local vars for classes too so we need
+  # To figure out exactly how to store them
+  rule :class_statement, "class", :lvalue, :inherit_statement?, "{", many?(:func_statement), "}" do
+    def evaluate
+      # First define a self variable that can be accessed by functions in the class
+      # self = ???
+      # Now evaluate all functions in the class' context
+      func_statement.each do |f|
+        # Get the bound function object
+        instance_function = f.get_function
+      end
+      nil
+    end
+  end
+
+  rule :class_instantiation, "new", :lvalue, :parameters do
+    def evaluate
+      params = parameters.evaluate
+      puts "Instantiating the #{lvalue} class" 
+    end
+  end
+
+  rule :inherit_statement, ":", :variable do
+    def evaluate
+      variable.evaluate
     end
   end
 
@@ -265,8 +314,9 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :func, :element_access, :array, :dict, :nada, :unary, :infix, :bool, 
-                  :string, :builtins, :call, :number, :variable ) do
+  rule :expr, any(:tern, :class_instantiation, :func, :element_access, :array, :dict,
+                  :nada, :unary, :infix, :bool, :string, :builtins, :call, :number, 
+                  :variable ) do
     def evaluate
       matches[0].evaluate
     end
@@ -366,13 +416,6 @@ class MiniParser < Parser
       # Now assign the function to a variable
       key = func_statement.get_name
       parser.add_var(key, wrapper_func.call(func), false)
-    end
-  end
-
-  # Helper for parameters
-  rule :arguments, "(", many?(:expr, ","), ")" do 
-    def evaluate
-      expr.map {|tup| tup.evaluate }.compact
     end
   end
 
