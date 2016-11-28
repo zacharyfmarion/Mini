@@ -265,7 +265,7 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :func, :element_access, :array, :dict, :nada, :unary, :bool, :infix, 
+  rule :expr, any(:tern, :func, :element_access, :array, :dict, :nada, :unary, :infix, :bool, 
                   :string, :builtins, :call, :number, :variable ) do
     def evaluate
       matches[0].evaluate
@@ -524,6 +524,7 @@ class MiniParser < Parser
     end
   end
 
+  # boolean is just evaluated as the keywords are the same in ruby
   rule :bool, any("true", "false") do
     def evaluate
       eval(matches[0].to_s)

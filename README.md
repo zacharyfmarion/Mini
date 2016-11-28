@@ -1,5 +1,7 @@
 # Mini
 
+[![Build Status](https://travis-ci.org/zacharyfmarion/Mini.svg?branch=master)](https://travis-ci.org/zacharyfmarion/Mini)
+
 Hi there! Welcome to the Mini language. A couple of weeks ago I found out about a seriously awesome and underrapreciated library called [BabelBridge](https://github.com/shanebdavis/Babel-Bridge) which lets you create an interpreted language without the pain of lexing and parsing separately (oh yeah and you're writing ruby instead of C, take that yacc!). Obviously it's not exactly blazing fast but the library is a super fun way to play around with syntaxes and try to better understand how language work (which I don't profess to know!). Anyways, let me know what you think!
 
 ## Setting up
@@ -55,13 +57,13 @@ fun main() {
 if (__name == "main") { main() }
 ```
 
-I'm in the process of adding things like decorators and classes, but they're a bit more complicated. In the mean time there are some obvious and gaping wholes in the language - like ~~NO FLOATS AT ALL~~ (fixed) and for some reason 'true or false' evaluates to false, which kinda blows my mind. Anywho, if you want to mess around with it or simply talk about languages I'm happy to engage! Hope you enjoy!
+I'm in the process of adding things like decorators and classes, but they're a bit more complicated. In the mean time there are some obvious and gaping wholes in the language - like ~~NO FLOATS AT ALL~~ (fixed) and for some reason ~~'true or false' evaluates to false~~ (fixed!), which kinda blows my mind. Anywho, if you want to mess around with it or simply talk about languages I'm happy to engage! Hope you enjoy!
 
 ## TODO
 
-- [ ] Integrate Travis
+- [x] Integrate Travis
 - [x] Add Floats
-- [ ] Fix Arithmetic bugs
+- [x] Fix Arithmetic bugs
 - [ ] Implement basic libs
 - [ ] Add classes
 - [ ] Add decorators with args (get rid of locals Hash)
