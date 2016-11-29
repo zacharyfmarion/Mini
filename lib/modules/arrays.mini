@@ -6,14 +6,14 @@ export fun slice(arr, start, end) {
   for (let mut i = start; i < end; i = i + 1) {
     ret << arr[i] 
   }
-  ret
+  return ret
 }
 
 # LOL what an efficient function
 export fun length(arr) {
   let mut ret = 0
   for (el in arr) { ret = ret + 1 }
-  ret
+  return ret
 }
 
 # Range function
@@ -23,14 +23,17 @@ export fun range(min, max) {
   for (let mut i = min; i < max; i = i + 1) {
     ret << i 
   }
-  ret
+  return ret
 }
 
 # Return an array with a function applied to each element
 export fun map(arr, func) {
+  ==/ Map an array through a given function
+      arr - The array to map
+      func - the function we are mapping over /==
   let ret = []
   for (el in arr) { ret << func(el) }
-  ret
+  return ret
 }
 
 # Filter...func must return a bool
@@ -39,7 +42,7 @@ export fun filter(arr, func) {
   for (el in arr) {
     if (func(el)) { ret << el }
   }
-  ret
+  return ret
 }
 
 # reduce(arr, (a, b) => { a + b })
@@ -53,7 +56,7 @@ export fun reduce(arr, func) {
       ret = func(ret, el)
     }
   }
-  ret
+  return ret
 }
 
 # Just another way to make a function

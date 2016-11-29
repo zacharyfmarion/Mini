@@ -42,12 +42,20 @@ class Parser < BabelBridge::Parser
     @locals = locals
   end
 
+  # Strip the trailing number from a node name (probably a better way to do this)
+  def self.node_name(node)
+    node.relative_class_name.gsub(/\d+$/, '')
+  end
+
   # Create a variable
   def self.make_var(var, mut=false)
     { "value"  => var, "mutable" => mut }
   end
 
   # Raise a generic error message
+  # TODO: Really should print out the Statement node in which the error is 
+  # contained ... currently just prints "asdf" if that was the undefined variable
+  # in an expression
   def self.error(msg, node, type = RuntimeError)
     source = ""; line = node.line
     sep = " " * 50
@@ -64,17 +72,24 @@ class Parser < BabelBridge::Parser
   # Read an import string and parse the files contents (if it exists)
   # node - the import statement node 
   # argv - the ARGV array for the file being executed (maybe don't need this...)
-  # string - the import string (path to the file)
+  # string - the import string (path to the file) - if it's not a relative path
+  #   then we look in lib/modules for the file
   def self.read_import(node, argv, string)
-    basepath = ""
-    if argv.length > 0 && argv[0] != "-i" && argv[0] != "--interactive"
-      basepath = File.dirname(argv[0])
-    end
+    path = ""
     # If there is no extension add the "mini" extension
     string = File.extname(string) == "" ? string + ".mini" : string
+    # if it is not a relative path look in the native modules folder
+    if string[0] != "."
+      # Get path to the libraries
+      path = File.dirname(File.dirname(__FILE__)) + "/modules/" + string
+    elsif argv.length > 0 && argv[0] != "-i" && argv[0] != "--interactive"
+      path = "./" + File.dirname(argv[0]) + string
+    else
+      path = string
+    end
     # Parsing the file and extracting the exports
-    mod = read_file("./" + basepath + string[1..-1])  
-    Parser.error("File #{string} does not exist", node, IOError) unless mod
+    mod = read_file(path)  
+    Parser.error("File #{path} does not exist", node, IOError) unless mod
     p = MiniParser.new(is_module: true)
     p.parse(mod).evaluate
     p # return the parser class

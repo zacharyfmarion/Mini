@@ -22,7 +22,6 @@ class TestMini < Minitest::Test
   def test_init
     val = {
       'value' => 'var_value',
-      'type' => String,
       'mutable' => false
     }
     assert_equal('var_value', MiniParser.new(store: { "test" => val }).parse('test').evaluate )
@@ -39,6 +38,7 @@ class TestMini < Minitest::Test
 
   def test_strings
     assert_equal("string!", MiniParser.new.parse('"string!"').evaluate )
+    assert_equal("string!", MiniParser.new.parse("'string!'").evaluate )
   end
 
   def test_bools
@@ -48,6 +48,22 @@ class TestMini < Minitest::Test
 
   def test_nada
     assert_equal(MiniParser.new.parse('nada').evaluate, nil)
+  end
+
+  def test_comments
+    # ------------------------- Single line comments ----------------------------- #
+    assert_equal(nil, MiniParser.new.parse("# This is a test").evaluate)
+    assert_equal(1, MiniParser.new.parse("# This is a test \n 1").evaluate)
+    # Not sure if this is how I want it to behave...
+    assert_equal(nil, MiniParser.new.parse("1\n# this is a test").evaluate)
+    # ------------------------- Multi line comments ----------------------------- #
+    str = '
+          /* 
+           * This is a test of multiline comments in the 
+           * language that I am writing yay woohoo
+           */
+          '
+    assert_equal(nil, MiniParser.new.parse(str).evaluate)
   end
 
   # ------------------------------------------------------------------------------ #
@@ -285,6 +301,17 @@ class TestMini < Minitest::Test
     assert_equal(6, MiniParser.new.parse(str).evaluate )
   end
 
+  def test_return
+    str = '
+          fun test()  {
+            return 1   
+            0
+          }
+          test()
+          '
+    assert_equal(1, MiniParser.new.parse(str).evaluate )
+  end
+
   # ------------------------------------------------------------------------------ #
   # ---------------------------------- BUILTINS  --------------------------------- #
   # ------------------------------------------------------------------------------ #
@@ -354,7 +381,14 @@ class TestMini < Minitest::Test
            println(mod::add(10, 10))
            println(mod::sub(10, 10))
           '
-    assert_output(/20\n0\n/) { MiniParser.new.parse(str5).evaluate }
+    assert_output(/20\n0\n/) { MiniParser.new.parse(str6).evaluate }
+
+    # Testing module imports
+    str7 = '
+           import { map } from "arrays"
+           map([1,2,3], (el) => {el * 2})
+           '
+    assert_equal([2,4,6], MiniParser.new.parse(str7).evaluate)
   end
 
   # ------------------------------------------------------------------------------ #

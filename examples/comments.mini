@@ -1,0 +1,14 @@
+# ---------------------------------------------------------------------------- #
+# Here is a single line comment - in this case it's much more python/ruby like #
+# ---------------------------------------------------------------------------- #
+
+/** 
+  * This is an example of a multiline comment...it's a pretty standard C-like 
+  * comment so I wont exactly rant and rave about it.
+  */
+fun test(arg_one, arg_two) {
+  ==/ A stupid function that does literally nothing (but has a great docstring)
+      arg_one - The first argument
+      arg_two - The second argument /==
+  return 1
+}

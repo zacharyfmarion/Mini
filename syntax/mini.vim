@@ -1,9 +1,9 @@
-" Vim syntax file
+" Vim syn file
 " Language: Mini
 " Maintainer: Zachary Marion
 " Latest Revision: 22 November 2016
 
-if exists("b:current_syntax")
+if exists("b:current_syn")
   finish
 endif
 
@@ -13,15 +13,16 @@ syn keyword MiniKeyword while
 syn keyword MiniKeyword for
 syn keyword MiniKeyword in
 syn keyword MiniKeyword nada
+syn keyword MiniKeyword return
 " syn keyword MiniKeyword let
 
-syntax match MiniOperator '\*'
-syntax match MiniOperator '/'
-" syntax match MiniOperator '\+'
-syntax match MiniOperator '-'
-syntax match MiniOperator '&'
-syntax match MiniOperator '^'
-syntax match MiniOperator '|'
+syn match MiniOperator '\*'
+syn match MiniOperator '/'
+" syn match MiniOperator '\+'
+syn match MiniOperator '-'
+syn match MiniOperator '&'
+syn match MiniOperator '^'
+syn match MiniOperator '|'
 
 " Functions
 syn keyword MiniFunction print println to_str to_num
@@ -30,20 +31,22 @@ syn match MiniFunction /\v(fun\s+)@>[a-zA-Z_]+/
 syn match MiniFunction /@.*$/ 
 
 " Types
-syntax keyword MiniType fun decorator
-syntax keyword MiniType ::
-syntax keyword MiniType let mut
+syn keyword MiniType fun decorator
+syn keyword MiniType ::
+syn keyword MiniType let mut
 
 " Special
-syntax keyword MiniSpecial export import from as
+syn keyword MiniSpecial export import from as
 syn keyword MiniSpecial __argv __name
 
 " Comment
 syn match MiniComment '#.*$'
+syn region MiniComment start=/\v\/\*/ skip=/\v\\./ end=/\v\*\//
 
 " String
-syntax region MiniString start=/\v"/ skip=/\v\\./ end=/\v"/
-
+syn region MiniString start=/\v"|'/ skip=/\v\\./ end=/\v"|'/
+" Docstrings
+syn region MiniString start=/\v\=\=\// skip=/\v\\./ end=/\v\/\=\=/
 
 " Function def
 " TODO: Figure this out

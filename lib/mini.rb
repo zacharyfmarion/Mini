@@ -46,6 +46,8 @@ class MiniParser < Parser
       ret = nil
       statement.each do |s|
         ret = s.evaluate
+        # If the node is a return node then exit!!!!
+        if s.is_return; break end
       end
       ret
     end
@@ -54,13 +56,18 @@ class MiniParser < Parser
   # A statement is the highest level thing in the language...a program
   # is essentially a group of statements
   rule :statement, any(:import, :export, :decorator, :class_statement, :func_statement, :codeblock, 
-                       :comment, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
+                       :comment, :return, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
                        :array_push, :assignment, :expr) do
     def evaluate
+      # puts matches[0].parent.class
       matches[0].evaluate
     end
+
+    def is_return
+      Parser.node_name(matches[0]) == "ReturnNode"
+    end
   end
-                       
+
   # ------------------------------------------------------------------------------ #
   # ----------------------------------- HELPERS ---------------------------------- #
   # ------------------------------------------------------------------------------ #
@@ -75,6 +82,17 @@ class MiniParser < Parser
   rule :parameters, "(", many?(:lvalue, ","), ")" do 
     def evaluate
       lvalue.map {|param| param.evaluate }.compact
+    end
+  end
+
+  # Return statement is distinguished so that a codeblock can exit
+  # if no expression is provided just return nil
+  rule :return, "return", :expr? do
+    def evaluate
+      if expr
+        return expr.evaluate 
+      end
+      nil
     end
   end
 
@@ -158,9 +176,20 @@ class MiniParser < Parser
   # ----------------------------- CONTROL FLOW ----------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  # dont evaluate a comment to anything
-  rule :comment, /#.*$/ do
+  rule :comment, any(:simple_comment, :multi_line_comment) do
     def evaluate; nil end
+  end
+
+  # dont evaluate a comment to anything
+  rule :simple_comment, /#.*$/
+
+  # Basically keep matching until you see the '*/' group
+  rule :multi_line_comment, "/*", /.*?(?=\*\/)/m, "*/"
+
+  rule :docstring, "==/", /.*?(?=\/\=\=)/m, "/==" do
+    def evaluate
+      matches[2].to_s
+    end
   end
 
   # If statement
@@ -423,12 +452,12 @@ class MiniParser < Parser
 
   # Functions are really just expressions that can be passed around as 
   # variables...kinda like in python (or ruby for that matter )
-  rule :func_variable, "(", many?(:lvalue, ","), ")", "=>", :codeblock do
+  rule :func_variable, :parameters, "=>", :codeblock do
     def evaluate
       def function(*args)
         # Open up a stack frame for the function call...local variables get stored here
         parser.stack << {}
-        params = lvalue
+        params = parameters.evaluate
         # Make sure we have the correct number of arguments
         if params.length != args.length then
           Parser.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
@@ -439,9 +468,8 @@ class MiniParser < Parser
         # args = array of arguments passed in (e.g. function(1,2,3))
         # params = array of parameter names (e.g. define function(a,b,c))
         params.each_with_index do |param, i|
-          param_str = param.evaluate
           # Save the arg as a variable in the env
-          parser.stack[-1][param_str] = Parser.make_var(args[i])
+          parser.stack[-1][param] = Parser.make_var(args[i])
         end
         # Now we actually evaluate the codeblock in the correct env
         ret = codeblock.evaluate
@@ -464,11 +492,11 @@ class MiniParser < Parser
   end
 
   # Making a function *statement* as a opposed to an expression
-  rule :func_statement, /fun|decorator/, :lvalue,  "(", many?(:lvalue, ",") ,")", :codeblock do
+  rule :func_statement, /fun|decorator/, :lvalue, :parameters, "{", :docstring?, :statements, "}" do
     def evaluate
       # Now assign the function to a variable
       func = self.get_function
-      key = lvalue[0].evaluate
+      key = lvalue.evaluate
       parser.add_var(key, func, false)
       func
     end
@@ -477,30 +505,27 @@ class MiniParser < Parser
       def function(*args)
         # Open up a stack frame for the function call...local variables get stored here
         parser.stack << {}
-        # get rid of the first lvalue
-        params = lvalue[1..-1]
+        params = parameters.evaluate
         # Make sure we have the correct number of arguments
         if params.length != args.length then
           Parser.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
         end
         params.each_with_index do |param, i|
-          param_str = param.evaluate
-          parser.stack[-1][param_str] = Parser.make_var(args[i])
+          parser.stack[-1][param] = Parser.make_var(args[i])
         end
-        # print "Calling #{lvalue[0].to_s}. Stack: "
-        # pp parser.stack
-        ret = codeblock.evaluate
+        ret = statements.evaluate
         parser.stack.pop()
         ret
       end
       {
         "function" => method(:function),
-        "locals" => parser.stack.reduce({}, :merge)
+        "locals" => parser.stack.reduce({}, :merge),
+        "docstring" => (docstring ? docstring.evaluate : "")
       }
     end
 
     def get_name
-      lvalue[0].evaluate
+      lvalue.evaluate
     end
   end
  
@@ -661,7 +686,7 @@ class MiniParser < Parser
     def evaluate; nil end
   end
 
-  rule :string, "\"", /[^"]*/, "\"" do
+  rule :string, /"|'/, /[^'"]*/, /"|'/ do
     def evaluate
       # Make sure we keep track of whitespace
       matches[1].to_s + matches[2].to_s + matches[3].to_s
