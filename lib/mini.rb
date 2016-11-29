@@ -63,9 +63,7 @@ class MiniParser < Parser
       matches[0].evaluate
     end
 
-    def is_return
-      Parser.node_name(matches[0]) == "ReturnNode"
-    end
+    def is_return; Parser.node_name(matches[0]) == "ReturnNode" end
   end
 
   # ------------------------------------------------------------------------------ #
@@ -635,7 +633,28 @@ class MiniParser < Parser
     end
   end
 
-  rule :assignment, any(:init_assignment, :reassignment)
+  rule :assignment, any(:init_assignment, :reassignment, :inc_dec)
+
+  # Increment or decrement shorthand (e.g. i++)
+  rule :inc_dec, :variable, /(\+\+)|(--)/ do
+    def evaluate
+      var = variable.evaluate
+      key = variable.get_name
+      Parser.error("#{key} must be an integer", self, TypeError) unless 
+        var.class == Fixnum
+      ret = matches[2].to_s == "++" ? var + 1 : var - 1
+      mutable = parser.get_var(key)["mutable"] 
+      if !parser.has_var?(key)
+        Parser.error("Variable '#{key}' does not exist", self)
+      elsif !mutable
+        Parser.error("Cannot reassign '#{key}': variable is immutable", self)
+      else
+        parser.add_var(key, ret, mutable)
+      end
+      # Assignment returns the expr that was assigned
+      ret
+    end
+  end
 
   # Note that if the stack frame is open then the variables are
   # local to that frame

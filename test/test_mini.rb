@@ -143,6 +143,11 @@ class TestMini < Minitest::Test
     assert_equal(1, MiniParser.new.parse("let i = 1 \n let j = i \n j").evaluate )
   end
 
+  def test_inc_dec
+    assert_equal(2, MiniParser.new.parse("let mut i = 1 \n i++").evaluate )
+    assert_equal(0, MiniParser.new.parse("let mut i = 1 \n i--").evaluate )
+  end
+
   def test_mutability
     assert_equal(2, MiniParser.new.parse("let mut i = 1 \n i = 2").evaluate )
     # assert_raises(MiniParser.new.parse("let i = 1 \n i = 2").evaluate, RuntimeError)
