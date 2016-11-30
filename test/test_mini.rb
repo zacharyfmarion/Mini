@@ -254,6 +254,23 @@ class TestMini < Minitest::Test
            add(12, 4) 
           '
     assert_equal(16, MiniParser.new.parse(str).evaluate )
+    # Functions that return a single expression can omit brackets (like in js)
+    str2 = 'let add = (a, b) => a + b
+            add(12, 4) 
+           '
+    assert_equal(16, MiniParser.new.parse(str2).evaluate )
+  end
+
+  def test_mutable_params
+    str = '
+          fun add(a, b) {
+            a++
+            a + b
+          }
+          # Should give a 3
+          add(1,1)
+          '
+    assert_equal(3, MiniParser.new.parse(str).evaluate )
   end
 
   def test_shadowing
@@ -307,14 +324,22 @@ class TestMini < Minitest::Test
   end
 
   def test_return
-    str = '
-          fun test()  {
+    str = 'fun test()  {
             return 1   
             0
           }
-          test()
-          '
+          test() '
     assert_equal(1, MiniParser.new.parse(str).evaluate )
+    str2 = 'fun test_while(max)  {
+              let mut i = 0
+              while ( i < max ) {
+                if (i > 5) { return i }
+                i++ 
+              }
+              return i
+            }
+            test_while(10) '
+    # assert_equal(6, MiniParser.new.parse(str2).evaluate )
   end
 
   # ------------------------------------------------------------------------------ #

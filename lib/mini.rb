@@ -39,24 +39,40 @@ class MiniParser < Parser
     def evaluate
       statements.evaluate
     end
+
+    def get_statements
+      statements.get_statements
+    end
   end
 
   rule :statements, many?(:statement) do
     def evaluate
       ret = nil
+      dist = Parser.dist_to_nearest_func(self)
+      # Note that this logic is complicated because we have to worry about 
+      # exception handling (return, break, continue, etc)
       statement.each do |s|
         ret = s.evaluate
-        # If the node is a return node then exit!!!!
-        if s.is_return; break end
+        # puts ret.to_s
+        if Parser.is_exception(ret, "return")
+          Parser.error("Cannot return from a non-function", self) unless dist != nil
+          return dist > 1 ? ret : ret["value"]
+        elsif Parser.is_exception(ret, "break") || Parser.is_exception(ret, "continue")
+          return ret
+        end
       end
-      ret
+      return ret
+    end
+
+    def get_statements
+      statement
     end
   end
 
   # A statement is the highest level thing in the language...a program
   # is essentially a group of statements
   rule :statement, any(:import, :export, :decorator, :class_statement, :func_statement, :codeblock, 
-                       :comment, :return, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
+                       :comment, :keywords, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
                        :array_push, :assignment, :expr) do
     def evaluate
       # puts matches[0].parent.class
@@ -83,14 +99,23 @@ class MiniParser < Parser
     end
   end
 
-  # Return statement is distinguished so that a codeblock can exit
-  # if no expression is provided just return nil
-  rule :return, "return", :expr? do
+  # ------------------------------------------------------------------------------ #
+  # ------------------------------- COMMENTS ------------------------------------- #
+  # ------------------------------------------------------------------------------ #
+
+  rule :comment, any(:simple_comment, :multi_line_comment) do
+    def evaluate; nil end
+  end
+
+  # dont evaluate a comment to anything
+  rule :simple_comment, /#.*$/
+
+  # Basically keep matching until you see the '*/' group
+  rule :multi_line_comment, "/*", /.*?(?=\*\/)/m, "*/"
+
+  rule :docstring, "==/", /.*?(?=\/\=\=)/m, "/==" do
     def evaluate
-      if expr
-        return expr.evaluate 
-      end
-      nil
+      matches[2].to_s
     end
   end
 
@@ -169,26 +194,45 @@ class MiniParser < Parser
       parser.exports[name] = Parser.make_var(expr, false)
     end
   end
+
+  # ------------------------------------------------------------------------------ #
+  # --------------------------------- KEYWORDS ----------------------------------- #
+  # ------------------------------------------------------------------------------ #
  
+  rule :keywords, any(:return, :break, :continue)
+
+  # Return statement is distinguished so that a codeblock can exit
+  # if no expression is provided just return nil
+  rule :return, "return", :expr? do
+    def evaluate
+      # Get the nearest function
+      func_node = Parser.get_nearest_function(self)
+      ret = expr ? expr.evaluate : nil
+      # If there is an excaption a has is returned
+      # IDK of a better way to do this
+      return {
+        "exception_type" => "return",
+        "value" => ret
+      }
+    end
+  end
+
+  # Keywords for loops
+  rule :break, "break" do
+    def evaluate
+      { "exception_type" => "break" }
+    end
+  end
+
+  rule :continue, "continue" do
+    def evaluate
+      { "exception_type" => "continue" }
+    end
+  end
+
   # ------------------------------------------------------------------------------ #
   # ----------------------------- CONTROL FLOW ----------------------------------- #
   # ------------------------------------------------------------------------------ #
-
-  rule :comment, any(:simple_comment, :multi_line_comment) do
-    def evaluate; nil end
-  end
-
-  # dont evaluate a comment to anything
-  rule :simple_comment, /#.*$/
-
-  # Basically keep matching until you see the '*/' group
-  rule :multi_line_comment, "/*", /.*?(?=\*\/)/m, "*/"
-
-  rule :docstring, "==/", /.*?(?=\/\=\=)/m, "/==" do
-    def evaluate
-      matches[2].to_s
-    end
-  end
 
   # If statement
   rule :ifelse, "if", "(", :expr, ")", :codeblock, many?(:elseifclause), :elseclause? do
@@ -232,7 +276,18 @@ class MiniParser < Parser
   rule :whileloop, "while", "(", :expr, ")", :codeblock do
     def evaluate
       while expr.evaluate do
-        codeblock.evaluate
+        ret = codeblock.evaluate
+        dist = Parser.dist_to_nearest_func(self)
+        # Deal with break and continue statements
+        if Parser.is_exception(ret, "return")
+          Parser.error("Cannot return from a non-function", self) unless dist != nil
+          return ret
+        elsif Parser.is_exception(ret, "break")
+          break
+        elsif Parser.is_exception(ret, "continue")
+          # do nothing...by stopping evaluating the statements you have 
+          # effectively continued already
+        end
       end
     end
   end
@@ -249,7 +304,18 @@ class MiniParser < Parser
       # Evaluate the assingment
       assignment.evaluate
       while expr.evaluate do
-        codeblock.evaluate
+        ret = codeblock.evaluate
+        dist = Parser.dist_to_nearest_func(self)
+        # Deal with break and continue statements
+        if Parser.is_exception(ret, "return")
+          Parser.error("Cannot return from a non-function", self) unless dist != nil
+          return ret
+        elsif Parser.is_exception(ret, "break")
+          break
+        elsif Parser.is_exception(ret, "continue")
+          # do nothing...by stopping evaluating the statements you have 
+          # effectively continued already
+        end
         statement.evaluate
       end
       # Add the value back
@@ -274,7 +340,18 @@ class MiniParser < Parser
       end
       while i < arr.length
         parser.store[var] = Parser.make_var(arr[i])
-        codeblock.evaluate
+        ret = codeblock.evaluate
+        dist = Parser.dist_to_nearest_func(self)
+        # Deal with break and continue statements
+        if Parser.is_exception(ret, "return")
+          Parser.error("Cannot return from a non-function", self) unless dist != nil
+          return ret
+        elsif Parser.is_exception(ret, "break")
+          break
+        elsif Parser.is_exception(ret, "continue")
+          # do nothing...by stopping evaluating the statements you have 
+          # effectively continued already
+        end
         i += 1
       end
       # Replace the shadowed value back with it's original
@@ -289,15 +366,23 @@ class MiniParser < Parser
   rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float)
 
   # A way to print a line
-  rule :print, "print", "(", :expr, ")" do
+  rule :print, "print", "(", :expr?, ")" do
     def evaluate
-      print expr.evaluate.to_s
+      if expr
+        print expr.evaluate.to_s
+      else
+        print()
+      end
     end
   end
 
-  rule :println, "println", "(", :expr, ")" do
+  rule :println, "println", "(", :expr?, ")" do
     def evaluate
-      puts expr.evaluate.to_s
+      if expr
+        puts expr.evaluate.to_s
+      else
+        print()
+      end
     end
   end
 
@@ -341,9 +426,9 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :class_instantiation, :func, :element_access, :array, :dict,
-                  :nada, :unary, :infix, :bool, :string, :builtins, :call, :number, 
-                  :variable ) do
+  rule :expr, any(:tern, :class_instantiation, :func, :array, :dict, :nada, :unary, 
+                  :builtins, :infix, :element_access, :bool, :string, :builtins, 
+                  :call, :number, :variable ) do
     def evaluate
       matches[0].evaluate
     end
@@ -393,6 +478,8 @@ class MiniParser < Parser
     def evaluate
       variable.evaluate[expr.evaluate]
     end
+    
+    def get_name; variable.get_name end
   end
 
   # For example: test->name
@@ -406,7 +493,6 @@ class MiniParser < Parser
       var[lvalue.evaluate]
     end
   end
-
 
   # ------------------------------------------------------------------------------ #
   # ------------------------------ OTHER EXPR ------------------------------------ #
@@ -450,7 +536,7 @@ class MiniParser < Parser
 
   # Functions are really just expressions that can be passed around as 
   # variables...kinda like in python (or ruby for that matter )
-  rule :func_variable, :parameters, "=>", :codeblock do
+  rule :func_variable, :parameters, "=>", any(:expr, :codeblock) do
     def evaluate
       def function(*args)
         # Open up a stack frame for the function call...local variables get stored here
@@ -467,10 +553,10 @@ class MiniParser < Parser
         # params = array of parameter names (e.g. define function(a,b,c))
         params.each_with_index do |param, i|
           # Save the arg as a variable in the env
-          parser.stack[-1][param] = Parser.make_var(args[i])
+          parser.stack[-1][param] = Parser.make_var(args[i], true)
         end
         # Now we actually evaluate the codeblock in the correct env
-        ret = codeblock.evaluate
+        ret = matches[4].evaluate
         # Pop off from the stack all the values of the locals variables
         parser.stack.pop()
         # Return ret ... the last statement by the codeblock...note that we could
@@ -509,7 +595,7 @@ class MiniParser < Parser
           Parser.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
         end
         params.each_with_index do |param, i|
-          parser.stack[-1][param] = Parser.make_var(args[i])
+          parser.stack[-1][param] = Parser.make_var(args[i], true)
         end
         ret = statements.evaluate
         parser.stack.pop()
@@ -545,7 +631,7 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:number, :string, :bool, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
+  binary_operators_rule :infix, any(:number, :string, :bool, :builtins, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
@@ -623,7 +709,7 @@ class MiniParser < Parser
       if parser.has_var?(var)
         ret = parser.get_var(var)["value"]
       else 
-        Parser.error("Variable #{var} does not exist", self)
+        Parser.error("Variable '#{var}' does not exist", self)
       end
       ret
     end
@@ -633,7 +719,7 @@ class MiniParser < Parser
     end
   end
 
-  rule :assignment, any(:init_assignment, :reassignment, :inc_dec)
+  rule :assignment, any(:array_dict_assignment, :init_assignment, :reassignment, :inc_dec)
 
   # Increment or decrement shorthand (e.g. i++)
   rule :inc_dec, :variable, /(\+\+)|(--)/ do
@@ -653,6 +739,20 @@ class MiniParser < Parser
       end
       # Assignment returns the expr that was assigned
       ret
+    end
+  end
+
+  rule :array_dict_assignment, :array_dict_access, "=", :expr do
+    def evaluate
+      ret = expr.evaluate 
+      name = array_dict_access.get_name
+      key = array_dict_access.get_key
+      if !parser.store.has_key?(name)
+        Parser.error("Variable '#{name}' does not exist", self)
+      elsif !parser.store.has_key?(key)
+        Parser.error("Variable '#{name}' does not contain the key #{key}", self)
+      end
+      parser.store[name][key] = ret
     end
   end
 
@@ -749,6 +849,7 @@ else
   parse_tree = mini_parser.parse file 
   # Check that the parse tree is valid 
   if parse_tree
+    # puts parse_tree.inspect
     ruby_data_structure = parse_tree.evaluate
     puts ruby_data_structure.inspect
   else

@@ -9,11 +9,12 @@ endif
 
 " Keywords
 syn keyword MiniKeyword if elseif else 
-syn keyword MiniKeyword while 
+syn keyword MiniKeyword while break continue
 syn keyword MiniKeyword for
 syn keyword MiniKeyword in
 syn keyword MiniKeyword nada
 syn keyword MiniKeyword return
+syn keyword MiniKeyword true false
 " syn keyword MiniKeyword let
 
 syn match MiniOperator '\*'

@@ -42,6 +42,43 @@ class Parser < BabelBridge::Parser
     @locals = locals
   end
 
+  # Get the distance to the nearest function (up the parse tree)
+  def self.dist_to_nearest_func(node)
+    dist = 0
+    while node
+      if Parser.node_name(node) == "FuncStatementNode" ||
+         Parser.node_name(node) == "FuncVariableNode"
+        return dist
+      end
+      dist += 1
+      node = node.parent
+    end
+    # Did not find a function parent
+    return nil
+  end
+
+  # Return whether a value is an exception or not
+  def self.is_exception(node_val, exception) 
+    if node_val.class == Hash && node_val.has_key?("exception_type") &&
+        node_val["exception_type"] == exception 
+      return true
+    end
+    return false
+  end
+
+  # Get the nearest function node on the parse tree
+  def self.get_nearest_function(node)
+    while node
+      if Parser.node_name(node) == "FuncStatementNode" ||
+         Parser.node_name(node) == "FuncVariableNode"
+        return node
+      end
+      node = node.parent
+    end
+    # Did not find a function parent
+    return nil
+  end
+
   # Strip the trailing number from a node name (probably a better way to do this)
   def self.node_name(node)
     node.relative_class_name.gsub(/\d+$/, '')
@@ -56,6 +93,7 @@ class Parser < BabelBridge::Parser
   # TODO: Really should print out the Statement node in which the error is 
   # contained ... currently just prints "asdf" if that was the undefined variable
   # in an expression
+  # TODO: Also pad the line numbers if there are more than 10 lines
   def self.error(msg, node, type = RuntimeError)
     source = ""; line = node.line
     sep = " " * 50
