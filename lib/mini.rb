@@ -6,19 +6,15 @@ require "pp"
 
 # TODO: This is a list of things that I want to implement in this language
 # 1. DETAILS
-#   i) Equality for all expressions (use ruby's equality testing / eval)
-#   ii) Floating point numbers - in fact I feel like I should just make all
-#      numbers floating pt. seeing as I'm not worried about performance
-#   iv) MAKE A RETURN STATEMENT!!!
-#   v) MAKE A NULL expression (nada)
+#    - Add string formatting
+#    - Pass arrays by reference!!!
 # 2. CLASSES - Implement a class syntax to allow for object oriented programming
 #    ...this is probably going to be a bit of a pain
 # 3. LIBRARIES - write libraries for Math, Strings, etc (once you can do some
 #    more things with the language
-# 4. Add better error handling
-# 6. Actually plan out what kind of syntax you want in the language...right now
-#    it's pretty C-like...maybe try some different things
-# 7. Break this out into multiple files - this is getting too big to put in one
+# 4. Actually plan out what kind of syntax you want in the language...right now
+#    it's pretty js-like...maybe try some different things
+# 5. Break this out into multiple files - this is getting too big to put in one
 
 class MiniParser < Parser
   ignore_whitespace
@@ -54,8 +50,10 @@ class MiniParser < Parser
       # exception handling (return, break, continue, etc)
       statement.each do |s|
         ret = s.evaluate
-        # puts ret.to_s
         if Helpers.is_exception(ret, "return")
+          # If the value is a return statement we either return the expression (if a function
+          # is at the next level up the tree) or just the Hash containing the exception, which 
+          # gets carried up through the statements until it reaches a function to return from
           Helpers.error("Cannot return from a non-function", self) unless dist != nil
           return dist > 1 ? ret : ret["value"]
         elsif Helpers.is_exception(ret, "break") || Helpers.is_exception(ret, "continue")
@@ -377,12 +375,13 @@ class MiniParser < Parser
     end
   end
 
+  # TODO: Add formatted output (like printf)
   rule :println, "println", "(", :expr?, ")" do
     def evaluate
       if expr
         puts expr.evaluate.to_s
       else
-        print()
+        puts()
       end
     end
   end
@@ -427,9 +426,9 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, 
-                  :builtins, :infix, :array, :dict, :element_access, :bool, :string, :builtins, 
-                  :call, :number, :variable ) do
+  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, :builtins, :infix, 
+                  :array, :dict, :element_access, :bool, :string, :builtins, :call, 
+                  :number, :variable ) do
     def evaluate
       matches[0].evaluate
     end
@@ -475,9 +474,18 @@ class MiniParser < Parser
   rule :element_access, any(:member_access, :array_dict_access)
 
   # Accessing an array
-  rule :array_dict_access, :variable, "[", :expr ,"]" do
+  rule :array_dict_access, :variable, "[", any(:pair, :expr) ,"]" do
     def evaluate
-      variable.evaluate[expr.evaluate]
+      var = variable.evaluate
+      # if node is a pair then slice the expression
+      if Helpers.node_name(matches[4]) == "PairNode"
+        Helpers.error("Cannot access a range from variable '#{variable.get_name}'", self) unless
+          var.class == String || var.class == Array
+        return var[ *matches[4].evaluate ]
+      end
+      Helpers.error("Cannot access a element from variable '#{variable.get_name}'", self) unless
+        var.class == String || var.class == Array || var.class == Hash
+      variable.evaluate[matches[4].evaluate]
     end
     
     def get_name; variable.get_name end
@@ -641,7 +649,7 @@ class MiniParser < Parser
       Helpers.error("Cannot perform #{operator} on 'nada'", self, TypeError) unless
         (l != nil && r != nil)
       if operator.to_s == "."
-        return l.send :+, r
+        return l.to_s.send :+, r.to_s
       elsif operator.to_s == "or"
         return (l || r)
       elsif operator.to_s == "and"
@@ -793,12 +801,6 @@ class MiniParser < Parser
 
     def get_name
       lvalue.to_s
-    end
-  end
-  
-  binary_operators_rule :concatenation, any(:string, :call, :number), ["."] do
-    def evaluate
-      left.evaluate.to_s.send :+, right.evaluate.to_s
     end
   end
 

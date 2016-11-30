@@ -137,6 +137,9 @@ class TestMini < Minitest::Test
   def test_concatenation
     assert_equal("this is interesting", MiniParser.new.parse('"this" . " is" . " interesting"').evaluate )
     assert_equal("abc", MiniParser.new.parse('"a"."b"."c"').evaluate )
+    # Testing string coersion
+    assert_equal("[1, 2, 3]abc", MiniParser.new.parse('[1,2,3] . "abc"').evaluate )
+    assert_equal("12{1=>2}", MiniParser.new.parse('1 . 2 . {1: 2}').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #
@@ -183,6 +186,13 @@ class TestMini < Minitest::Test
 
   def test_member_access
     assert_equal("testing", MiniParser.new.parse('let test = {"test": "testing"} test -> test').evaluate )
+  end
+
+  # Can access an array or string like so
+  def test_element_access 
+    assert_equal(1, MiniParser.new.parse("let arr = [1,2,3,4,5] \n arr[0]").evaluate )
+    assert_equal([1,2], MiniParser.new.parse("let arr = [1,2,3,4,5] \n arr[0:2]").evaluate )
+    assert_equal("ello", MiniParser.new.parse("let str = 'hello world' \n str[1:4]").evaluate )
   end
 
   # ------------------------------------------------------------------------------ #
