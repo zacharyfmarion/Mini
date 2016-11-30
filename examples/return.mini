@@ -1,0 +1,63 @@
+fun test_simple_return() {
+  ==/ A stupid function to test whether or not nested
+      returns are executed properly /==
+  if (true) {
+    return 1
+  }
+  println("hi")
+}
+
+fun test_while_return() {
+  ==/ Testing whether return exist a while loop /==
+  let mut i = 0
+  while (i < 10) {
+    print(i) 
+    if (i > 5) { return i }
+    i++
+  }
+  return i
+}
+
+fun test_nested_while() {
+  let mut i = 0
+  while (i < 5) {
+    if (i > 2) { return }
+    print(i)
+    let mut j = 0
+    while(j < 5) {
+      if (j > 2) { break }
+      print(j)
+      j++
+    }
+    i++
+  }
+}
+
+fun test_for_in() {
+  let numbers = [1,2,3,4,5,6]
+  for (number in numbers) {
+    print(number) 
+    if (number == 3) { break }
+  }
+}
+
+fun test_c_for() {
+  for (let mut i = 0; i < 10; i++) {
+    if (i == 2) { continue }
+    print(i)
+  }
+}
+
+fun main() {
+  println(test_simple_return())
+  test_while_return()
+  println("")
+  test_for_in()
+  println("")
+  test_c_for()
+  println("")
+  test_nested_while()
+  println("")
+}
+
+if (__name == "main") { main() }

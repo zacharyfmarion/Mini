@@ -3,6 +3,7 @@
 # For better error messages
 require 'colorize'
 require "babel_bridge"
+require_relative "./Helpers"
 
 class Parser < BabelBridge::Parser
 
@@ -12,8 +13,8 @@ class Parser < BabelBridge::Parser
   #  - is_module -> Whether or not we are importing the file as a module
   def initialize(store: {}, is_module: false)
     @store ||= store.merge({
-      '__argv' => Parser.make_var(ARGV, false),
-      '__name' => Parser.make_var(is_module ? "module" : "main", false)
+      '__argv' => Helpers.make_var(ARGV, false),
+      '__name' => Helpers.make_var(is_module ? "module" : "main", false)
     })
   end
 
@@ -42,110 +43,6 @@ class Parser < BabelBridge::Parser
     @locals = locals
   end
 
-  # Get the distance to the nearest function (up the parse tree)
-  def self.dist_to_nearest_func(node)
-    dist = 0
-    while node
-      if Parser.node_name(node) == "FuncStatementNode" ||
-         Parser.node_name(node) == "FuncVariableNode"
-        return dist
-      end
-      dist += 1
-      node = node.parent
-    end
-    # Did not find a function parent
-    return nil
-  end
-
-  # Return whether a value is an exception or not
-  def self.is_exception(node_val, exception) 
-    if node_val.class == Hash && node_val.has_key?("exception_type") &&
-        node_val["exception_type"] == exception 
-      return true
-    end
-    return false
-  end
-
-  # Get the nearest function node on the parse tree
-  def self.get_nearest_function(node)
-    while node
-      if Parser.node_name(node) == "FuncStatementNode" ||
-         Parser.node_name(node) == "FuncVariableNode"
-        return node
-      end
-      node = node.parent
-    end
-    # Did not find a function parent
-    return nil
-  end
-
-  # Strip the trailing number from a node name (probably a better way to do this)
-  def self.node_name(node)
-    node.relative_class_name.gsub(/\d+$/, '')
-  end
-
-  # Create a variable
-  def self.make_var(var, mut=false)
-    { "value"  => var, "mutable" => mut }
-  end
-
-  # Raise a generic error message
-  # TODO: Really should print out the Statement node in which the error is 
-  # contained ... currently just prints "asdf" if that was the undefined variable
-  # in an expression
-  # TODO: Also pad the line numbers if there are more than 10 lines
-  def self.error(msg, node, type = RuntimeError)
-    source = ""; line = node.line
-    sep = " " * 50
-    msg = msg.colorize(:color => :red)
-    node.text.each_line do |code|
-      source += "#{line} ".colorize(:color => :white, :background => :blue)
-      source += " #{code}"
-      line += 1
-    end
-    raise type.new "\n\n#{msg}\n#{sep}\n#{source}\n#{sep}\n"
-
-  end
-
-  # Read an import string and parse the files contents (if it exists)
-  # node - the import statement node 
-  # argv - the ARGV array for the file being executed (maybe don't need this...)
-  # string - the import string (path to the file) - if it's not a relative path
-  #   then we look in lib/modules for the file
-  def self.read_import(node, argv, string)
-    path = ""
-    # If there is no extension add the "mini" extension
-    string = File.extname(string) == "" ? string + ".mini" : string
-    # if it is not a relative path look in the native modules folder
-    if string[0] != "."
-      # Get path to the libraries
-      path = File.dirname(File.dirname(__FILE__)) + "/modules/" + string
-    elsif argv.length > 0 && argv[0] != "-i" && argv[0] != "--interactive"
-      path = "./" + File.dirname(argv[0]) + string
-    else
-      path = string
-    end
-    # Parsing the file and extracting the exports
-    mod = read_file(path)  
-    Parser.error("File #{path} does not exist", node, IOError) unless mod
-    p = MiniParser.new(is_module: true)
-    p.parse(mod).evaluate
-    p # return the parser class
-  end
-
-  # Get the imports from a parser containing a files exports
-  # p - The parser for the imported file
-  # from_statement - The optional from statement "{ map, reduce } from "
-  def self.get_imports(p, from_statement)
-    exports = {}
-    if from_statement
-      from_statement.evaluate.each do |import_name|
-        exports[import_name] = p.exports[import_name]
-      end
-    else; exports = p.exports end
-    exports
-  end
-
   # Get a variable from the store
   def get_var(key)
     ret = nil
@@ -170,7 +67,7 @@ class Parser < BabelBridge::Parser
 
   # Add a variable to the store
   def add_var(key, ret, mutable)
-    var = Parser.make_var(ret, mutable)
+    var = Helpers.make_var(ret, mutable)
     if self.stack.length > 0 then
       self.stack[-1][key] = var
     else
