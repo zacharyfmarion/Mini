@@ -83,7 +83,10 @@ class TestMini < Minitest::Test
   end
 
   def test_negative
-    skip "Need to worry about dealing with unary operators"
+    assert_equal(-1, MiniParser.new.parse('-1').evaluate )
+    assert_equal(-1, MiniParser.new.parse('1 + -2').evaluate )
+    assert_equal(5, MiniParser.new.parse('4 - -1').evaluate )
+    assert_equal(5, MiniParser.new.parse('4 - (-1)').evaluate )
   end
 
   def test_and_or
@@ -121,21 +124,26 @@ class TestMini < Minitest::Test
     assert_equal(true, MiniParser.new.parse('("asdf" == "asdf")').evaluate )
   end
 
-  # TODO: Yeah not sure how to handle this
   def test_equality
-    # assert_equal(MiniParser.new.parse('1 is 2').evaluate, false)
-    # assert_equal(MiniParser.new.parse('"test" is "test"').evaluate, true)
-    skip "Not sure how to handle equality tbh"
+    assert_equal(false, MiniParser.new.parse('1 == 2').evaluate)
+    assert_equal(false, MiniParser.new.parse('false == true').evaluate)
+    assert_equal(true, MiniParser.new.parse('false == false').evaluate)
+    assert_equal(true, MiniParser.new.parse('"test" == "test"').evaluate)
+    assert_equal(true, MiniParser.new.parse('[1,2,3] == [1,2,3]').evaluate)
+    assert_equal(true, MiniParser.new.parse('{1: "a"} == {1: "a"}').evaluate)
   end
 
-  # TODO: Deal with parser skipping whitespace within strings
+  # todo: deal with parser skipping whitespace within strings
   def test_concatenation
     assert_equal("this is interesting", MiniParser.new.parse('"this" . " is" . " interesting"').evaluate )
     assert_equal("abc", MiniParser.new.parse('"a"."b"."c"').evaluate )
+    # Testing string coersion
+    assert_equal("[1, 2, 3]abc", MiniParser.new.parse('[1,2,3] . "abc"').evaluate )
+    assert_equal("12{1=>2}", MiniParser.new.parse('1 . 2 . {1: 2}').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #
-  # ------------------------------- VARIABLES  ----------------------------------- #
+  # ------------------------------- variables  ----------------------------------- #
   # ------------------------------------------------------------------------------ #
 
   def test_variables
@@ -178,6 +186,13 @@ class TestMini < Minitest::Test
 
   def test_member_access
     assert_equal("testing", MiniParser.new.parse('let test = {"test": "testing"} test -> test').evaluate )
+  end
+
+  # Can access an array or string like so
+  def test_element_access 
+    assert_equal(1, MiniParser.new.parse("let arr = [1,2,3,4,5] \n arr[0]").evaluate )
+    assert_equal([1,2], MiniParser.new.parse("let arr = [1,2,3,4,5] \n arr[0:2]").evaluate )
+    assert_equal("ello", MiniParser.new.parse("let str = 'hello world' \n str[1:4]").evaluate )
   end
 
   # ------------------------------------------------------------------------------ #
@@ -232,6 +247,20 @@ class TestMini < Minitest::Test
            }
            sum'
     assert_equal(45, MiniParser.new.parse(str).evaluate )
+    str2 = '
+          let mut sum = 0
+          let els = {"one": 1, "two": 2, "three": 3}
+          for (key, value in els) { sum = sum + value }
+          sum
+          '
+    assert_equal(6, MiniParser.new.parse(str2).evaluate )
+    str3 = '
+          let mut str = ""
+          let els = {"one": 1, "two": 2, "three": 3}
+          for (key, value in els) { str = str . key }
+          str
+          '
+    assert_equal("onetwothree", MiniParser.new.parse(str3).evaluate )
   end
 
   def test_while
@@ -412,6 +441,18 @@ class TestMini < Minitest::Test
     assert_equal(10, MiniParser.new.parse('to_int("10")').evaluate )
     assert_equal(1.0, MiniParser.new.parse("to_float(1.0)").evaluate )
     assert_equal(10.0, MiniParser.new.parse('to_float("10.0")').evaluate )
+  end
+
+  def test_types
+    assert_equal("Integer", MiniParser.new.parse('type(1)').evaluate )
+    assert_equal("Float", MiniParser.new.parse('type(1.0)').evaluate )
+    assert_equal("String", MiniParser.new.parse("type('String')").evaluate )
+    assert_equal("String", MiniParser.new.parse('type("String")').evaluate )
+    assert_equal("Dict", MiniParser.new.parse('type({1: 1})').evaluate )
+    assert_equal("Array", MiniParser.new.parse('type([])').evaluate )
+    # assert_equal("Function", MiniParser.new.parse('() => { 1 }').evaluate )
+    assert_equal("Boolean", MiniParser.new.parse('type(false)').evaluate )
+    assert_equal("Boolean", MiniParser.new.parse('type(true)').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #

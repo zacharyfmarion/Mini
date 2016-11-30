@@ -27,6 +27,7 @@ syn match MiniOperator '|'
 
 " Functions
 syn keyword MiniFunction print println to_str to_num
+syn keyword MiniFunction eval len
 " Not sure why this isn't working
 syn match MiniFunction /\v(fun\s+)@>[a-zA-Z_]+/ 
 syn match MiniFunction /@.*$/ 

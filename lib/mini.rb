@@ -1,23 +1,20 @@
 #!/usr/bin/env ruby
 
 require_relative "./mini/Parser"
+require_relative "./mini/Helpers"
 require "pp"
 
 # TODO: This is a list of things that I want to implement in this language
 # 1. DETAILS
-#   i) Equality for all expressions (use ruby's equality testing / eval)
-#   ii) Floating point numbers - in fact I feel like I should just make all
-#      numbers floating pt. seeing as I'm not worried about performance
-#   iv) MAKE A RETURN STATEMENT!!!
-#   v) MAKE A NULL expression (nada)
+#    - Add string formatting
+#    - Pass arrays by reference!!!
 # 2. CLASSES - Implement a class syntax to allow for object oriented programming
 #    ...this is probably going to be a bit of a pain
 # 3. LIBRARIES - write libraries for Math, Strings, etc (once you can do some
 #    more things with the language
-# 4. Add better error handling
-# 6. Actually plan out what kind of syntax you want in the language...right now
-#    it's pretty C-like...maybe try some different things
-# 7. Break this out into multiple files - this is getting too big to put in one
+# 4. Actually plan out what kind of syntax you want in the language...right now
+#    it's pretty js-like...maybe try some different things
+# 5. Break this out into multiple files - this is getting too big to put in one
 
 class MiniParser < Parser
   ignore_whitespace
@@ -48,16 +45,18 @@ class MiniParser < Parser
   rule :statements, many?(:statement) do
     def evaluate
       ret = nil
-      dist = Parser.dist_to_nearest_func(self)
+      dist = Helpers.dist_to_nearest_func(self)
       # Note that this logic is complicated because we have to worry about 
       # exception handling (return, break, continue, etc)
       statement.each do |s|
         ret = s.evaluate
-        # puts ret.to_s
-        if Parser.is_exception(ret, "return")
-          Parser.error("Cannot return from a non-function", self) unless dist != nil
+        if Helpers.is_exception(ret, "return")
+          # If the value is a return statement we either return the expression (if a function
+          # is at the next level up the tree) or just the Hash containing the exception, which 
+          # gets carried up through the statements until it reaches a function to return from
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
           return dist > 1 ? ret : ret["value"]
-        elsif Parser.is_exception(ret, "break") || Parser.is_exception(ret, "continue")
+        elsif Helpers.is_exception(ret, "break") || Helpers.is_exception(ret, "continue")
           return ret
         end
       end
@@ -72,14 +71,14 @@ class MiniParser < Parser
   # A statement is the highest level thing in the language...a program
   # is essentially a group of statements
   rule :statement, any(:import, :export, :decorator, :class_statement, :func_statement, :codeblock, 
-                       :comment, :keywords, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
-                       :array_push, :assignment, :expr) do
+                       :comment, :keywords, :ifelse, :cfor, :forloop, :whileloop, :array_push, 
+                       :assignment, :expr) do
     def evaluate
       # puts matches[0].parent.class
       matches[0].evaluate
     end
 
-    def is_return; Parser.node_name(matches[0]) == "ReturnNode" end
+    def is_return; Helpers.node_name(matches[0]) == "ReturnNode" end
   end
 
   # ------------------------------------------------------------------------------ #
@@ -160,9 +159,9 @@ class MiniParser < Parser
     def evaluate
       # We need to find the basepath relative to the file we are executing (if it is in
       # fact a file
-      p = Parser.read_import(self, ARGV, string.evaluate)
+      p = Helpers.read_import(self, ARGV, string.evaluate)
       # if there is a from statement, we only take the required exports
-      imports = Parser.get_imports(p, from_statement)
+      imports = Helpers.get_imports(p, from_statement)
       # Import aliasing
       if import_alias
         parser.imports[import_alias.evaluate] = imports
@@ -191,7 +190,7 @@ class MiniParser < Parser
       # the string of the variable name in the expression
       name = matches[2].get_name()
       expr = matches[2].evaluate
-      parser.exports[name] = Parser.make_var(expr, false)
+      parser.exports[name] = Helpers.make_var(expr, false)
     end
   end
 
@@ -206,7 +205,7 @@ class MiniParser < Parser
   rule :return, "return", :expr? do
     def evaluate
       # Get the nearest function
-      func_node = Parser.get_nearest_function(self)
+      func_node = Helpers.get_nearest_function(self)
       ret = expr ? expr.evaluate : nil
       # If there is an excaption a has is returned
       # IDK of a better way to do this
@@ -277,14 +276,14 @@ class MiniParser < Parser
     def evaluate
       while expr.evaluate do
         ret = codeblock.evaluate
-        dist = Parser.dist_to_nearest_func(self)
+        dist = Helpers.dist_to_nearest_func(self)
         # Deal with break and continue statements
-        if Parser.is_exception(ret, "return")
-          Parser.error("Cannot return from a non-function", self) unless dist != nil
+        if Helpers.is_exception(ret, "return")
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
           return ret
-        elsif Parser.is_exception(ret, "break")
+        elsif Helpers.is_exception(ret, "break")
           break
-        elsif Parser.is_exception(ret, "continue")
+        elsif Helpers.is_exception(ret, "continue")
           # do nothing...by stopping evaluating the statements you have 
           # effectively continued already
         end
@@ -305,14 +304,14 @@ class MiniParser < Parser
       assignment.evaluate
       while expr.evaluate do
         ret = codeblock.evaluate
-        dist = Parser.dist_to_nearest_func(self)
+        dist = Helpers.dist_to_nearest_func(self)
         # Deal with break and continue statements
-        if Parser.is_exception(ret, "return")
-          Parser.error("Cannot return from a non-function", self) unless dist != nil
+        if Helpers.is_exception(ret, "return")
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
           return ret
-        elsif Parser.is_exception(ret, "break")
+        elsif Helpers.is_exception(ret, "break")
           break
-        elsif Parser.is_exception(ret, "continue")
+        elsif Helpers.is_exception(ret, "continue")
           # do nothing...by stopping evaluating the statements you have 
           # effectively continued already
         end
@@ -325,6 +324,44 @@ class MiniParser < Parser
     end
   end
 
+  rule :lvalue_tuple, :lvalue, ",", :lvalue do
+    def evaluate
+      return [ lvalue[0].evaluate, lvalue[1].evaluate]
+    end
+  end
+
+  # For in loop for a dict (expect a key and value)
+  rule :forloop, "for", "(", :lvalue_tuple, "in", :expr, ")", :codeblock do
+    def evaluate
+      # Need to create a variable in the environment and executed it
+      key, value = lvalue_tuple.evaluate
+      temp_key = nil; temp_val = nil
+      dict = expr.evaluate
+      Helpers.error("#{dict.class} is not a suitable iterable (must be an Dict)", self) unless dict.class == Hash
+      if parser.store.has_key?(key) then temp_key = parser.store[key] end
+      if parser.store.has_key?(value) then temp_val = parser.store[value] end
+      dict.each do |k, v|
+        parser.store[key] = Helpers.make_var(k)
+        parser.store[value] = Helpers.make_var(v)
+        ret = codeblock.evaluate
+        dist = Helpers.dist_to_nearest_func(self)
+        # Deal with break and continue statements
+        if Helpers.is_exception(ret, "return")
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
+          return ret
+        elsif Helpers.is_exception(ret, "break")
+          break
+        elsif Helpers.is_exception(ret, "continue")
+          # do nothing...by stopping evaluating the statements you have 
+          # effectively continued already
+        end
+      end
+      # Replace the shadowed value back with it's original
+      parser.store[key] = temp_key
+      parser.store[value] = temp_val
+    end
+  end
+
   # For in loop for an array (Really should change this to an iterable...should
   # be able to do something at least similar for a dict
   rule :forloop, "for", "(", :lvalue, "in", :expr, ")", :codeblock do
@@ -334,21 +371,21 @@ class MiniParser < Parser
       temp = nil
       i = 0 # This is the index of the array we are on
       arr = expr.evaluate
-      Parser.error("#{arr.class} is not iterable (must be an Array)", self) unless arr.class == Array
+      Helpers.error("#{arr.class} is not a suitable iterable (must be an Array)", self) unless arr.class == Array
       if parser.store.has_key?(var) then
         temp = parser.store[var]
       end
       while i < arr.length
-        parser.store[var] = Parser.make_var(arr[i])
+        parser.store[var] = Helpers.make_var(arr[i])
         ret = codeblock.evaluate
-        dist = Parser.dist_to_nearest_func(self)
+        dist = Helpers.dist_to_nearest_func(self)
         # Deal with break and continue statements
-        if Parser.is_exception(ret, "return")
-          Parser.error("Cannot return from a non-function", self) unless dist != nil
+        if Helpers.is_exception(ret, "return")
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
           return ret
-        elsif Parser.is_exception(ret, "break")
+        elsif Helpers.is_exception(ret, "break")
           break
-        elsif Parser.is_exception(ret, "continue")
+        elsif Helpers.is_exception(ret, "continue")
           # do nothing...by stopping evaluating the statements you have 
           # effectively continued already
         end
@@ -363,7 +400,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float)
+  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float, :type)
 
   # A way to print a line
   rule :print, "print", "(", :expr?, ")" do
@@ -376,12 +413,13 @@ class MiniParser < Parser
     end
   end
 
+  # TODO: Add formatted output (like printf)
   rule :println, "println", "(", :expr?, ")" do
     def evaluate
       if expr
         puts expr.evaluate.to_s
       else
-        print()
+        puts()
       end
     end
   end
@@ -420,15 +458,22 @@ class MiniParser < Parser
       expr.evaluate.to_f
     end
   end
+
+  # We return our custom classes
+  rule :type, "type", "(", :expr, ")" do
+    def evaluate
+      return Helpers.get_type(expr.evaluate.class)
+    end
+  end
   
   # ------------------------------------------------------------------------------ #
   # ------------------------------ EXPRESSIONS ----------------------------------- #
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :class_instantiation, :func, :array, :dict, :nada, :unary, 
-                  :builtins, :infix, :element_access, :bool, :string, :builtins, 
-                  :call, :number, :variable ) do
+  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, :infix, 
+                  :array, :dict, :element_access, :bool, :string, :builtins, :call, 
+                  :number, :variable ) do
     def evaluate
       matches[0].evaluate
     end
@@ -474,11 +519,27 @@ class MiniParser < Parser
   rule :element_access, any(:member_access, :array_dict_access)
 
   # Accessing an array
-  rule :array_dict_access, :variable, "[", :expr ,"]" do
+  rule :array_dict_access, :variable, "[", any(:pair, :expr) ,"]" do
     def evaluate
-      variable.evaluate[expr.evaluate]
+      var = variable.evaluate
+      # if node is a pair then slice the expression
+      if Helpers.node_name(matches[4]) == "PairNode"
+        Helpers.error("Cannot access a range from variable '#{variable.get_name}'", self) unless
+          var.class == String || var.class == Array
+        return var[ *matches[4].evaluate ]
+      end
+      Helpers.error("Cannot access a element from variable '#{variable.get_name}'", self) unless
+        var.class == String || var.class == Array || var.class == Hash
+      variable.evaluate[matches[4].evaluate]
     end
     
+    def get_key
+      if Helpers.node_name(matches[4]) != "PairNode"
+        return matches[4].evaluate
+      end
+      return nil
+    end
+
     def get_name; variable.get_name end
   end
 
@@ -487,8 +548,8 @@ class MiniParser < Parser
   rule :member_access, :variable, "->", :lvalue do
     def evaluate
       var = variable.evaluate 
-      Parser.error("Variable does not exist", self) unless var != ""
-      Parser.error("Variable #{variable.var_name} cannot be accessed with member syntax", self) unless 
+      Helpers.error("Variable does not exist", self) unless var != ""
+      Helpers.error("Variable #{variable.var_name} cannot be accessed with member syntax", self) unless 
         (var.class == Hash || var.class == Class)
       var[lvalue.evaluate]
     end
@@ -515,7 +576,7 @@ class MiniParser < Parser
       # the decorator function
       wrapper_func = nil
       dec = variable.evaluate
-      Parser.error("Decorator @#{variable.get_name} must be a Method, not #{dec.class}", self, TypeError) unless dec.class == Hash
+      Helpers.error("Decorator @#{variable.get_name} must be a Method, not #{dec.class}", self, TypeError) unless dec.class == Hash
       # If we are dealing with a complex decorator
       if arguments
         # We have to call the decorator wrapper with the args to get the actual
@@ -544,7 +605,7 @@ class MiniParser < Parser
         params = parameters.evaluate
         # Make sure we have the correct number of arguments
         if params.length != args.length then
-          Parser.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
+          Helpers.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
         end
         # Iterate over the parameters
         # We need to update the environment so that the params become variables  
@@ -553,7 +614,7 @@ class MiniParser < Parser
         # params = array of parameter names (e.g. define function(a,b,c))
         params.each_with_index do |param, i|
           # Save the arg as a variable in the env
-          parser.stack[-1][param] = Parser.make_var(args[i], true)
+          parser.stack[-1][param] = Helpers.make_var(args[i], true)
         end
         # Now we actually evaluate the codeblock in the correct env
         ret = matches[4].evaluate
@@ -592,10 +653,10 @@ class MiniParser < Parser
         params = parameters.evaluate
         # Make sure we have the correct number of arguments
         if params.length != args.length then
-          Parser.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
+          Helpers.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
         end
         params.each_with_index do |param, i|
-          parser.stack[-1][param] = Parser.make_var(args[i], true)
+          parser.stack[-1][param] = Helpers.make_var(args[i], true)
         end
         ret = statements.evaluate
         parser.stack.pop()
@@ -618,7 +679,7 @@ class MiniParser < Parser
     def evaluate
       args = expr.map {|tup| tup.evaluate }.compact
       func = variable.evaluate
-      # Parser.error("Function '#{variable.get_name}' does not exist", self) unless func == Hash
+      # Helpers.error("Function '#{variable.get_name}' does not exist", self) unless func == Hash
       parser.locals = func["locals"]
       # puts "CALLING: #{variable.get_name}"
       # puts "FUNCTION: #{func}"
@@ -631,16 +692,16 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:number, :string, :bool, :builtins, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
+  binary_operators_rule :infix, any(:builtins, :call, :element_access, :number, :string, :bool, :array, :dict, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
       # both acutally integers (not floats or whatever the hell else)
       l = left.evaluate; r = right.evaluate
-      Parser.error("Cannot perform #{operator} on 'nada'", self, TypeError) unless
+      Helpers.error("Cannot perform #{operator} on 'nada'", self, TypeError) unless
         (l != nil && r != nil)
       if operator.to_s == "."
-        return l.send :+, r
+        return l.to_s.send :+, r.to_s
       elsif operator.to_s == "or"
         return (l || r)
       elsif operator.to_s == "and"
@@ -690,9 +751,9 @@ class MiniParser < Parser
       mod = lvalue[0].evaluate
       var = lvalue[1].evaluate
       if !parser.imports.has_key?(mod)
-        Parser.error("Module '#{mod}' does not exist", self)
+        Helpers.error("Module '#{mod}' does not exist", self)
       elsif !parser.imports[mod].has_key?(var)
-        Parser.error("Module '#{mod}' does not contain variable '{var}'", self)
+        Helpers.error("Module '#{mod}' does not contain variable '{var}'", self)
       else 
         parser.imports[mod][var]["value"]
       end
@@ -709,7 +770,7 @@ class MiniParser < Parser
       if parser.has_var?(var)
         ret = parser.get_var(var)["value"]
       else 
-        Parser.error("Variable '#{var}' does not exist", self)
+        Helpers.error("Variable '#{var}' does not exist", self)
       end
       ret
     end
@@ -726,14 +787,14 @@ class MiniParser < Parser
     def evaluate
       var = variable.evaluate
       key = variable.get_name
-      Parser.error("#{key} must be an integer", self, TypeError) unless 
+      Helpers.error("#{key} must be an integer", self, TypeError) unless 
         var.class == Fixnum
       ret = matches[2].to_s == "++" ? var + 1 : var - 1
       mutable = parser.get_var(key)["mutable"] 
       if !parser.has_var?(key)
-        Parser.error("Variable '#{key}' does not exist", self)
+        Helpers.error("Variable '#{key}' does not exist", self)
       elsif !mutable
-        Parser.error("Cannot reassign '#{key}': variable is immutable", self)
+        Helpers.error("Cannot reassign '#{key}': variable is immutable", self)
       else
         parser.add_var(key, ret, mutable)
       end
@@ -747,12 +808,12 @@ class MiniParser < Parser
       ret = expr.evaluate 
       name = array_dict_access.get_name
       key = array_dict_access.get_key
-      if !parser.store.has_key?(name)
-        Parser.error("Variable '#{name}' does not exist", self)
-      elsif !parser.store.has_key?(key)
-        Parser.error("Variable '#{name}' does not contain the key #{key}", self)
+      if !parser.has_var?(name)
+        Helpers.error("Variable '#{name}' does not exist", self)
       end
-      parser.store[name][key] = ret
+      replace_val = parser.get_var(name)
+      replace_val["value"][key] = ret
+      parser.add_var(name, replace_val["value"], replace_val["mutable"])
     end
   end
 
@@ -780,9 +841,9 @@ class MiniParser < Parser
       key = lvalue.evaluate
       mutable = parser.get_var(key)["mutable"] 
       if !parser.has_var?(key)
-        Parser.error("Variable '#{key}' does not exist", self)
+        Helpers.error("Variable '#{key}' does not exist", self)
       elsif !mutable
-        Parser.error("Cannot reassign '#{key}': variable is immutable", self)
+        Helpers.error("Cannot reassign '#{key}': variable is immutable", self)
       else
         parser.add_var(key, ret, mutable)
       end
@@ -794,12 +855,6 @@ class MiniParser < Parser
       lvalue.to_s
     end
   end
-  
-  binary_operators_rule :concatenation, any(:string, :call, :number), ["."] do
-    def evaluate
-      left.evaluate.to_s.send :+, right.evaluate.to_s
-    end
-  end
 
   rule :nada, "nada" do
     def evaluate; nil end
@@ -809,6 +864,13 @@ class MiniParser < Parser
     def evaluate
       # Make sure we keep track of whitespace
       matches[1].to_s + matches[2].to_s + matches[3].to_s
+    end
+  end
+
+  # Negative numbers are parsed first
+  rule :number, "-", :number do
+    def evaluate
+      return -(number.evaluate)
     end
   end
 
