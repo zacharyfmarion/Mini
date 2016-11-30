@@ -339,7 +339,52 @@ class TestMini < Minitest::Test
               return i
             }
             test_while(10) '
-    # assert_equal(6, MiniParser.new.parse(str2).evaluate )
+    assert_equal(6, MiniParser.new.parse(str2).evaluate )
+    str3 = '
+            fun test_nested_while() {
+              let mut i = 0
+              while (i < 5) {
+                if (i > 2) { return }
+                print(i)
+                let mut j = 0
+                while(j < 5) {
+                  if (j > 2) { break }
+                  print(j)
+                  j++
+                }
+                i++
+              }
+            }
+            test_nested_while()
+           '
+    assert_output(/001210122012/) { MiniParser.new.parse(str3).evaluate }
+  end
+
+  def test_break
+    str = '
+          fun test_for_in_break() {
+            let numbers = [1,2,3,4,5,6]
+            for (number in numbers) {
+              print(number) 
+              if (number == 3) { break }
+            }
+          }
+          test_for_in_break()
+          '
+    assert_output(/123/) { MiniParser.new.parse(str).evaluate }
+  end
+
+  def test_continue
+    str = '
+          fun test_continue() {
+            for (let mut i = 0; i < 10; i++) {
+              if (i == 2) { continue }
+              print(i)
+            }
+          }
+          test_continue()
+          '
+    assert_output(/013456789/) { MiniParser.new.parse(str).evaluate }
   end
 
   # ------------------------------------------------------------------------------ #
