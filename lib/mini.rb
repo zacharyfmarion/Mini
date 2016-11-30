@@ -427,8 +427,8 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :class_instantiation, :func, :array, :dict, :nada, :unary, 
-                  :builtins, :infix, :element_access, :bool, :string, :builtins, 
+  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, 
+                  :builtins, :infix, :array, :dict, :element_access, :bool, :string, :builtins, 
                   :call, :number, :variable ) do
     def evaluate
       matches[0].evaluate
@@ -632,7 +632,7 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:number, :string, :bool, :builtins, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
+  binary_operators_rule :infix, any(:number, :string, :bool, :array, :dict, :builtins, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
@@ -810,6 +810,13 @@ class MiniParser < Parser
     def evaluate
       # Make sure we keep track of whitespace
       matches[1].to_s + matches[2].to_s + matches[3].to_s
+    end
+  end
+
+  # Negative numbers are parsed first
+  rule :number, "-", :number do
+    def evaluate
+      return -(number.evaluate)
     end
   end
 

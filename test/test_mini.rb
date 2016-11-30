@@ -83,7 +83,10 @@ class TestMini < Minitest::Test
   end
 
   def test_negative
-    skip "Need to worry about dealing with unary operators"
+    assert_equal(-1, MiniParser.new.parse('-1').evaluate )
+    assert_equal(-1, MiniParser.new.parse('1 + -2').evaluate )
+    assert_equal(5, MiniParser.new.parse('4 - -1').evaluate )
+    assert_equal(5, MiniParser.new.parse('4 - (-1)').evaluate )
   end
 
   def test_and_or
@@ -121,21 +124,23 @@ class TestMini < Minitest::Test
     assert_equal(true, MiniParser.new.parse('("asdf" == "asdf")').evaluate )
   end
 
-  # TODO: Yeah not sure how to handle this
   def test_equality
-    # assert_equal(MiniParser.new.parse('1 is 2').evaluate, false)
-    # assert_equal(MiniParser.new.parse('"test" is "test"').evaluate, true)
-    skip "Not sure how to handle equality tbh"
+    assert_equal(false, MiniParser.new.parse('1 == 2').evaluate)
+    assert_equal(false, MiniParser.new.parse('false == true').evaluate)
+    assert_equal(true, MiniParser.new.parse('false == false').evaluate)
+    assert_equal(true, MiniParser.new.parse('"test" == "test"').evaluate)
+    assert_equal(true, MiniParser.new.parse('[1,2,3] == [1,2,3]').evaluate)
+    assert_equal(true, MiniParser.new.parse('{1: "a"} == {1: "a"}').evaluate)
   end
 
-  # TODO: Deal with parser skipping whitespace within strings
+  # todo: deal with parser skipping whitespace within strings
   def test_concatenation
     assert_equal("this is interesting", MiniParser.new.parse('"this" . " is" . " interesting"').evaluate )
     assert_equal("abc", MiniParser.new.parse('"a"."b"."c"').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #
-  # ------------------------------- VARIABLES  ----------------------------------- #
+  # ------------------------------- variables  ----------------------------------- #
   # ------------------------------------------------------------------------------ #
 
   def test_variables
