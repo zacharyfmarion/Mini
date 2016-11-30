@@ -3,6 +3,23 @@
 
 module Helpers
 
+  # Mapping ruby types to mini types
+  def Helpers.get_type(class_name) 
+    case class_name.to_s
+    when "Fixnum"; return "Integer"
+    when "Float"; return "Float"
+    when "Method"; return "Function"
+    when "String"; return "String"
+    when "Array"; return "Array"
+    when "Hash"
+      # TODO: We need to check if the Hash is actually a function
+      return "Dict"
+    when "FalseClass"; return "Boolean"
+    when "TrueClass"; return "Boolean"
+    else; return nil
+    end
+  end
+
   # Get the distance to the nearest function (up the parse tree)
   def Helpers.dist_to_nearest_func(node)
     dist = 0

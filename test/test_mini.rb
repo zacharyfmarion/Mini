@@ -247,6 +247,20 @@ class TestMini < Minitest::Test
            }
            sum'
     assert_equal(45, MiniParser.new.parse(str).evaluate )
+    str2 = '
+          let mut sum = 0
+          let els = {"one": 1, "two": 2, "three": 3}
+          for (key, value in els) { sum = sum + value }
+          sum
+          '
+    assert_equal(6, MiniParser.new.parse(str2).evaluate )
+    str3 = '
+          let mut str = ""
+          let els = {"one": 1, "two": 2, "three": 3}
+          for (key, value in els) { str = str . key }
+          str
+          '
+    assert_equal("onetwothree", MiniParser.new.parse(str3).evaluate )
   end
 
   def test_while
@@ -427,6 +441,18 @@ class TestMini < Minitest::Test
     assert_equal(10, MiniParser.new.parse('to_int("10")').evaluate )
     assert_equal(1.0, MiniParser.new.parse("to_float(1.0)").evaluate )
     assert_equal(10.0, MiniParser.new.parse('to_float("10.0")').evaluate )
+  end
+
+  def test_types
+    assert_equal("Integer", MiniParser.new.parse('type(1)').evaluate )
+    assert_equal("Float", MiniParser.new.parse('type(1.0)').evaluate )
+    assert_equal("String", MiniParser.new.parse("type('String')").evaluate )
+    assert_equal("String", MiniParser.new.parse('type("String")').evaluate )
+    assert_equal("Dict", MiniParser.new.parse('type({1: 1})').evaluate )
+    assert_equal("Array", MiniParser.new.parse('type([])').evaluate )
+    # assert_equal("Function", MiniParser.new.parse('() => { 1 }').evaluate )
+    assert_equal("Boolean", MiniParser.new.parse('type(false)').evaluate )
+    assert_equal("Boolean", MiniParser.new.parse('type(true)').evaluate )
   end
 
   # ------------------------------------------------------------------------------ #

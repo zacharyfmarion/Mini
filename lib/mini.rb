@@ -71,8 +71,8 @@ class MiniParser < Parser
   # A statement is the highest level thing in the language...a program
   # is essentially a group of statements
   rule :statement, any(:import, :export, :decorator, :class_statement, :func_statement, :codeblock, 
-                       :comment, :keywords, :ifelse, :cfor, :forloop, :whileloop, :builtins, 
-                       :array_push, :assignment, :expr) do
+                       :comment, :keywords, :ifelse, :cfor, :forloop, :whileloop, :array_push, 
+                       :assignment, :expr) do
     def evaluate
       # puts matches[0].parent.class
       matches[0].evaluate
@@ -324,6 +324,44 @@ class MiniParser < Parser
     end
   end
 
+  rule :lvalue_tuple, :lvalue, ",", :lvalue do
+    def evaluate
+      return [ lvalue[0].evaluate, lvalue[1].evaluate]
+    end
+  end
+
+  # For in loop for a dict (expect a key and value)
+  rule :forloop, "for", "(", :lvalue_tuple, "in", :expr, ")", :codeblock do
+    def evaluate
+      # Need to create a variable in the environment and executed it
+      key, value = lvalue_tuple.evaluate
+      temp_key = nil; temp_val = nil
+      dict = expr.evaluate
+      Helpers.error("#{dict.class} is not a suitable iterable (must be an Dict)", self) unless dict.class == Hash
+      if parser.store.has_key?(key) then temp_key = parser.store[key] end
+      if parser.store.has_key?(value) then temp_val = parser.store[value] end
+      dict.each do |k, v|
+        parser.store[key] = Helpers.make_var(k)
+        parser.store[value] = Helpers.make_var(v)
+        ret = codeblock.evaluate
+        dist = Helpers.dist_to_nearest_func(self)
+        # Deal with break and continue statements
+        if Helpers.is_exception(ret, "return")
+          Helpers.error("Cannot return from a non-function", self) unless dist != nil
+          return ret
+        elsif Helpers.is_exception(ret, "break")
+          break
+        elsif Helpers.is_exception(ret, "continue")
+          # do nothing...by stopping evaluating the statements you have 
+          # effectively continued already
+        end
+      end
+      # Replace the shadowed value back with it's original
+      parser.store[key] = temp_key
+      parser.store[value] = temp_val
+    end
+  end
+
   # For in loop for an array (Really should change this to an iterable...should
   # be able to do something at least similar for a dict
   rule :forloop, "for", "(", :lvalue, "in", :expr, ")", :codeblock do
@@ -333,7 +371,7 @@ class MiniParser < Parser
       temp = nil
       i = 0 # This is the index of the array we are on
       arr = expr.evaluate
-      Helpers.error("#{arr.class} is not iterable (must be an Array)", self) unless arr.class == Array
+      Helpers.error("#{arr.class} is not a suitable iterable (must be an Array)", self) unless arr.class == Array
       if parser.store.has_key?(var) then
         temp = parser.store[var]
       end
@@ -362,7 +400,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float)
+  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float, :type)
 
   # A way to print a line
   rule :print, "print", "(", :expr?, ")" do
@@ -420,13 +458,20 @@ class MiniParser < Parser
       expr.evaluate.to_f
     end
   end
+
+  # We return our custom classes
+  rule :type, "type", "(", :expr, ")" do
+    def evaluate
+      return Helpers.get_type(expr.evaluate.class)
+    end
+  end
   
   # ------------------------------------------------------------------------------ #
   # ------------------------------ EXPRESSIONS ----------------------------------- #
   # ------------------------------------------------------------------------------ #
 
   # An expression is something that evaluates to something primitive
-  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, :builtins, :infix, 
+  rule :expr, any(:tern, :class_instantiation, :func, :nada, :unary, :infix, 
                   :array, :dict, :element_access, :bool, :string, :builtins, :call, 
                   :number, :variable ) do
     def evaluate
@@ -488,6 +533,13 @@ class MiniParser < Parser
       variable.evaluate[matches[4].evaluate]
     end
     
+    def get_key
+      if Helpers.node_name(matches[4]) != "PairNode"
+        return matches[4].evaluate
+      end
+      return nil
+    end
+
     def get_name; variable.get_name end
   end
 
@@ -640,7 +692,7 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:number, :string, :bool, :array, :dict, :builtins, :element_access, :call, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
+  binary_operators_rule :infix, any(:builtins, :call, :element_access, :number, :string, :bool, :array, :dict, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
@@ -756,12 +808,12 @@ class MiniParser < Parser
       ret = expr.evaluate 
       name = array_dict_access.get_name
       key = array_dict_access.get_key
-      if !parser.store.has_key?(name)
+      if !parser.has_var?(name)
         Helpers.error("Variable '#{name}' does not exist", self)
-      elsif !parser.store.has_key?(key)
-        Helpers.error("Variable '#{name}' does not contain the key #{key}", self)
       end
-      parser.store[name][key] = ret
+      replace_val = parser.get_var(name)
+      replace_val["value"][key] = ret
+      parser.add_var(name, replace_val["value"], replace_val["mutable"])
     end
   end
 
