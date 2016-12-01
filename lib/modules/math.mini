@@ -43,9 +43,10 @@ export fun log(x, precision: PRECISION) {
   return 2 * sum
 }
 
-export fun sqrt(x) {
+export fun sqrt(x, precision: PRECISION) {
   ==/ Compute the square root of a number using Newton's method /==
   if (x < 0) { raise("x must be greater than 0") }
+  return exp(log(x, precision) / 2)
 }
 
 export fun floor(x) {
