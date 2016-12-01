@@ -1,14 +1,10 @@
-# Arrays util functions
-
-# Range function
-export fun range(min, max) {
-  if (min > max) { raise("Max must be greater than or equal to min") }
-  let ret = []
-  for (let mut i = min; i < max; i = i + 1) {
-    ret << i 
-  }
-  return ret
-}
+/*************************************************************************
+  * A library with standard array functions. Never had to implement a    *
+  * standard lib before so I'm sure these are all horibbly inefficient   *
+  * and buggy                                                            *
+  * @author: Zachary Marion                                              *
+  * @date: November 30, 2016                                             *
+  ***********************************************************************/
 
 export fun concat(arr_a, arr_b) {
   ==/ Concatenate two arrays together /==
@@ -16,24 +12,45 @@ export fun concat(arr_a, arr_b) {
   return arr_a
 }
 
-# Return an array with a function applied to each element
 export fun map(arr, func) {
-  ==/ Map an array through a given function
-      arr - The array to map
-      func - the function we are mapping over /==
+  ==/ Map an array through a given function /==
   let ret = []
   for (el in arr) { ret << func(el) }
   return ret
 }
 
 export fun each(arr, func) {
+  ==/ Apply a function to each element in an array /==
   for (el in arr) {
     func(el) 
   }
 }
 
-# Filter...func must return a bool
+export fun max(arr) {
+  ==/ Compute the max element in an array /==
+  if (len(arr) == 0) { return nada }
+  let mut max = arr[0]
+  for (el in arr) { if (el > max) { max = el }}
+  return max
+}
+
+export fun min(arr) {
+  ==/ Compute the min element in an array /==
+  if (len(arr) == 0) { return nada }
+  let mut min = arr[0]
+  for (el in arr) { if (el < min) { min = el }}
+  return min
+}
+
+export fun sum(arr) {
+  ==/ Compute the sum of each element in the array /==
+  let mut sum = 0
+  for (el in arr) { sum = sum + el}
+  return sum
+}
+
 export fun filter(arr, func) {
+  ==/ Filter an array through a given function /==
   let ret = []
   for (el in arr) {
     if (func(el)) { ret << el }
@@ -41,8 +58,8 @@ export fun filter(arr, func) {
   return ret
 }
 
-# reduce(arr, (a, b) => { a + b })
 export fun reduce(arr, func) {
+  ==/ Reduce a function into a single expression /==
   let mut ret = nada 
   if (len(arr) == 0) { nada }
   elseif (len(arr) == 1) { ret = arr[0] }
@@ -56,6 +73,7 @@ export fun reduce(arr, func) {
 }
 
 export fun empty(arr) {
+  ==/ Whether an array is empty /==
   return len(arr) == 0
 }
 

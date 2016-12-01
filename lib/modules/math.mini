@@ -1,0 +1,105 @@
+/*************************************************************************
+  * A library with standard math functions. Never had to implement a     *
+  * standard lib before so I'm sure these are all horibbly inefficient   *
+  * and buggy                                                            *
+  * @author: Zachary Marion                                              *
+  * @date: November 30, 2016                                             *
+  ***********************************************************************/
+
+# Mathematical constants to 20 digits
+export let sqrt_two = 1.4142135623730950488
+export let pi       = 3.1415926535897932385
+export let e        = 2.7182818284590452354
+
+# Taylor approximation precision
+let PRECISION = 25
+
+export fun factorial(n) {
+  ==/ Iterative implementation of factorial /==
+  let mut prod = 1
+  for (let mut i = 1; i <= n; i++) {
+    prod = prod * i 
+  }
+  return prod
+}
+
+export fun exp(x) {
+  ==/ Compute e ** x/==
+  return e ** x
+}
+
+export fun abs(x) {
+  ==/ Compute the absolute value of a number /==
+  let mut prod = 1
+  return x < 0 ? -x : x
+}
+
+export fun log(x, precision: PRECISION) {
+  ==/ Compute a natural logarithm using taylor approximation /==
+  let mut sum = 0
+  for (let mut n = 0; n <= precision; n++) {
+    sum = sum + (1.0 / (2 * n + 1)) * (((x - 1.0) / (x + 1.0)) ** (2 * n + 1))
+  }
+  return 2 * sum
+}
+
+export fun sqrt(x) {
+  ==/ Compute the square root of a number using Newton's method /==
+  if (x < 0) { raise("x must be greater than 0") }
+}
+
+export fun floor(x) {
+  ==/ Compute the floor of a number/==
+  return x - (x % 1)
+}
+
+export fun ceil(x) {
+  ==/ Compute the cieling of a number/==
+  return 0 - floor(-x)
+}
+
+export fun round(x) {
+  ==/ Round a number to the nearest integer /==
+  return floor(x + 0.5)
+}
+
+# Trig functions
+export fun sin(x, precision: PRECISION) {
+  ==/ Implementation of sine using it's taylor series
+      Note that x is in degrees! /==
+  # The angle expressed in radians
+  let rad = x * (1.0 / 180.0) * pi
+  let mut sum = rad
+  # Given a precision, compute the taylor series
+  for (let mut i = 1; i <= precision; i++) {
+    if (i % 2 == 0) {
+      sum = sum + (rad ** (2*i+1)) / factorial(2 * i + 1)
+    } else {
+      sum = sum - (rad ** (2*i + 1)) / factorial(2 * i + 1)
+    }
+  }
+  return sum
+}
+
+export fun cos(x, precision: PRECISION) {
+  ==/ Implementation of cosine using it's taylor series 
+      Note that x is in degrees! /==
+  # The angle expressed in radians
+  let rad = x * (1.0 / 180.0) * pi
+  let mut sum = 1
+  # Given a precision, compute the taylor series
+  for (let mut i = 1; i <= precision; i++) {
+    if (i % 2 == 0) {
+      sum = sum + (rad ** (2 * i)) / factorial(2 * i)
+    } else {
+      sum = sum - (rad ** (2 * i)) / factorial(2 * i)
+    }
+  }
+  return sum
+}
+
+export fun tan(x, precision: PRECISION) {
+  ==/ Implementation of tangent using cos and sin
+      Note that x is in degrees! /==
+  return sin(x, precision) / cos(x, precision)
+}

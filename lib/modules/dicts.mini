@@ -1,0 +1,87 @@
+/*************************************************************************
+  * A library with standard dict functions. Never had to implement a     *
+  * standard lib before so I'm sure these are all horibbly inefficient   *
+  * and buggy                                                            *
+  * @author: Zachary Marion                                              *
+  * @date: November 30, 2016                                             *
+  ***********************************************************************/
+
+export fun keys(dict) {
+  ==/ Get all the keys of a dict...would probably be more efficient
+      if it was implemented as a builtin /==
+  let res = []
+  for (key, value in dict) { res << key }
+  return res
+}
+
+export fun values(dict) {
+  ==/ Get all the values of a dict...would probably be more efficient
+      if it was implemented as a builtin /==
+  let res = []
+  for (key, value in dict) { res << value }
+  return res
+}
+
+export fun filter(dict, func) {
+  ==/ Filter a dict through a function (func recieves key and value) /==
+  let mut ret = {}
+  for (key, val in dict) {
+    if (func(val)) { ret[key] = val }
+  }
+  return ret
+}
+
+export fun has_key(dict, key) {
+  ==/ Check whether a key exists in the dict /==
+  for (k, v in dict) {
+    if ( k == key) { return true }
+  }
+  return false
+}
+
+export fun has_value(dict, val) {
+  ==/ Check whether a value exists in the dict /==
+  for (k, v in dict) {
+    if ( v == val) { return true }
+  }
+  return false
+}
+
+export fun map(dict, func) {
+  ==/ Map a dict through a given function /==
+  let mut ret = {}
+  for ( key, value in dict) {
+    ret[key] = func(key, value) 
+  }
+  return ret
+}
+
+export fun each(dict, func) {
+  ==/ Apply a function to each key, value in an array /==
+  for ( key, value in dict) {
+    func(key, value) 
+  }
+}
+
+export fun merge(dict_a, dict_b) {
+  ==/ Merge two arrays, overriding values in the first with the 
+      second if they exist /==
+  for (key, value in dict_b) {
+    dict_a[key] = value
+  }
+  return dict_a
+}
+
+export fun empty(dict) {
+  ==/ Whether a dict is empty /==
+  return len(dict) == 0
+}
+
+fun main() {
+  let dict = { "one": 1, "two": 2}
+  println(values(dict))
+  println(keys(dict))
+  println(filter(dict, (el) => el < 2))
+}
+
+if (__name == "main") { main() }

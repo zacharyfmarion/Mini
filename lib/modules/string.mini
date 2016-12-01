@@ -1,34 +1,71 @@
-# A library with standard string functions
-
-export fun slice(str, start, end) {
-  let mut res = ""
-  for (let mut i = start; i < end; i = i + 1) {
-    res = res . str[i] 
-  }
-  res
-}
+/*************************************************************************
+  * A library with standard string functions. Never had to implement a   *
+  * standard lib before so I'm sure these are all horibbly inefficient   *
+  * and buggy                                                            *
+  * @author: Zachary Marion                                              *
+  * @date: November 30, 2016                                             *
+  ***********************************************************************/
 
 export fun indexOf(str, search_str) {
-  println("IndexOf not yet implemented")
+  ==/ Find the index of the first occurrence of a string in another string /==
+  # Only need to search up until len(str) - len(search_str) + 1
+  for (let mut i = 0; i < (len(str) - len(search_str) + 1); i++) {
+    let substring = str[i : i + len(search_str) - 1 ]
+    if (substring == search_str) { return i }
+  }
+  return -1
 }
 
-export fun replace(str, replace_str) {
-  println("IndexOf not yet implemented")
+export fun replace(str, find_str, replace_str) {
+  ==/ Replace the first occurrence of a string within another string /==
+  let i = indexOf(str, find_str)
+  # If we found find_str in the string
+  if (i != -1) {
+    let first_part = str[0: i == 0 ? i : i - 1]
+    let second_part = str[i + len(find_str): -1]
+    str = first_part . replace_str . second_part
+  }
+  return str
 }
 
 export fun upper(str) {
-  println("IndexOf not yet implemented")
+  ==/ Convert a string to uppercase /==
+  for (let mut i = 0; i < len(str); i++) {
+    if ((char(str[i]) > 96) and (char(str[i]) < 123)) {
+      str[i] = from_char(char(str[i]) - 32)
+    }
+  }
+  return str
 }
 
 export fun lower(str) {
-  println("IndexOf not yet implemented")
+  ==/ Convert a string to lowercase /==
+  for (let mut i = 0; i < len(str); i++) {
+    if ((char(str[i]) > 64) and (char(str[i]) < 91)) {
+      str[i] = from_char(char(str[i]) + 32)
+    }
+  }
+  return str
 }
 
-fun main() {
-  let str = "0123456789" 
-  println(slice(str, 1, 4))
+export fun to_array(str) {
+  ==/ Convert a string into an array of string characters/==
+  let arr = []
+  for (let mut i = 0; i < len(str); i++) {
+    arr << str[i] 
+  }
+  return arr
 }
 
-if (__name == "main") {
-  main()
+export fun to_char_array(str) {
+  ==/ Convert a string into a character array /==
+  let arr = []
+  for (let mut i = 0; i < len(str); i++) {
+    arr << char(str[i])
+  }
+  return arr
 }
+
+fun main() { }
+
+if (__name == "main") { main() }

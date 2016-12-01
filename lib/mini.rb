@@ -85,16 +85,44 @@ class MiniParser < Parser
   # ----------------------------------- HELPERS ---------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  # Helper for parameters
-  rule :arguments, "(", many?(:expr, ","), ")" do 
+  rule :named_param, :lvalue, ":", :expr do
+    def get_lvalue; lvalue end
+    def get_expr; expr end
+  end
+
+  # An argument evaluates to a name (nil if not a named arg, else the lvalue) and
+  # a value (the expression that was evaluated)
+  rule :arg, any(:named_param, :expr) do
     def evaluate
-      expr.map {|arg| arg.evaluate }.compact
+      is_named = Helpers.node_name(matches[0]) == "NamedParamNode"
+      {
+        "name" => is_named ? matches[0].get_lvalue.evaluate : nil,
+        "value" => is_named ? matches[0].get_expr.evaluate : matches[0].evaluate
+      }
     end
   end
 
-  rule :parameters, "(", many?(:lvalue, ","), ")" do 
+  # Helper for parameters
+  rule :arguments, "(", many?(:arg, ","), ")" do 
     def evaluate
-      lvalue.map {|param| param.evaluate }.compact
+      arg.map {|a| a.evaluate }.compact
+    end
+  end
+
+  # Either a param that has a default value or just a regular param
+  rule :param, any(:named_param, :lvalue) do
+    def evaluate
+      is_named = Helpers.node_name(matches[0]) == "NamedParamNode"
+      {
+        "name" => is_named ? matches[0].get_lvalue.evaluate : matches[0].evaluate,
+        "default" => is_named ? matches[0].get_expr.evaluate : nil
+      }
+    end
+  end
+
+  rule :parameters, "(", many?(:param, ","), ")" do 
+    def evaluate
+      param.map {|p| p.evaluate }.compact
     end
   end
 
@@ -114,7 +142,7 @@ class MiniParser < Parser
 
   rule :docstring, "==/", /.*?(?=\/\=\=)/m, "/==" do
     def evaluate
-      matches[2].to_s
+      matches[2].to_s.strip
     end
   end
 
@@ -319,7 +347,7 @@ class MiniParser < Parser
       end
       # Add the value back
       if temp != nil
-        parser.add_var(temp["value"], temp["mutable"])
+        parser.add_var(var_name, temp["value"], temp["mutable"])
       end
     end
   end
@@ -400,7 +428,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :eval, :raise, :len, :to_str, :to_int, :to_float, :type)
+  rule :builtins, any(:println, :print, :eval, :doc, :char, :from_char, :raise, :len, :to_str, :to_int, :to_float, :type)
 
   # A way to print a line
   rule :print, "print", "(", :expr?, ")" do
@@ -420,6 +448,18 @@ class MiniParser < Parser
         puts expr.evaluate.to_s
       else
         puts()
+      end
+    end
+  end
+
+  # Get the docstring of a function
+  rule :doc, "doc", "(", :variable, ")" do
+    def evaluate
+      var = variable.evaluate
+      if var.class == Hash && var.has_key?("function") && var["function"].class == Method
+        return var["docstring"]
+      else 
+        Parser.error("Cannot get docstring for non-function")
       end
     end
   end
@@ -444,6 +484,24 @@ class MiniParser < Parser
   rule :to_str, "to_str", "(", :expr, ")" do
     def evaluate
       expr.evaluate.to_s
+    end
+  end
+
+  rule :char, "char", "(", :expr, ")" do
+    def evaluate
+      str = expr.evaluate
+      Helpers.error("Cannot get ascii code for expression of type #{str.class}", self) unless 
+        str.class == String
+      str.ord
+    end
+  end
+
+  rule :from_char, "from_char", "(", :expr, ")" do
+    def evaluate
+      int = expr.evaluate
+      Helpers.error("Ascii code must be an integer", self) unless 
+        int.class == Fixnum
+      int.chr
     end
   end
 
@@ -519,18 +577,20 @@ class MiniParser < Parser
   rule :element_access, any(:member_access, :array_dict_access)
 
   # Accessing an array
-  rule :array_dict_access, :variable, "[", any(:pair, :expr) ,"]" do
+  rule :array_dict_access, any(:variable, :string, :array, :dict), "[", any(:pair, :expr) ,"]" do
     def evaluate
-      var = variable.evaluate
+      expr = matches[0].evaluate
       # if node is a pair then slice the expression
       if Helpers.node_name(matches[4]) == "PairNode"
-        Helpers.error("Cannot access a range from variable '#{variable.get_name}'", self) unless
-          var.class == String || var.class == Array
-        return var[ *matches[4].evaluate ]
+        Helpers.error("Cannot access a range from expression of type #{expr.class}", self) unless
+          expr.class == String || expr.class == Array
+        first, last = matches[4].evaluate 
+        if first == last; return "" end
+        return expr[first..last]
       end
-      Helpers.error("Cannot access a element from variable '#{variable.get_name}'", self) unless
-        var.class == String || var.class == Array || var.class == Hash
-      variable.evaluate[matches[4].evaluate]
+      Helpers.error("Cannot access a element from expression of type '#{expr.class}'", self) unless
+        expr.class == String || expr.class == Array || expr.class == Hash
+      expr[matches[4].evaluate]
     end
     
     def get_key
@@ -614,7 +674,14 @@ class MiniParser < Parser
         # params = array of parameter names (e.g. define function(a,b,c))
         params.each_with_index do |param, i|
           # Save the arg as a variable in the env
-          parser.stack[-1][param] = Helpers.make_var(args[i], true)
+          if args[i]
+            parser.stack[-1][param["name"]] = Helpers.make_var(args[i]["value"], true)
+          # Else if args[i] does not exist but a default value was specified
+          elsif param["default"] != nil
+            parser.stack[-1][param["name"]] = Helpers.make_var(param["default"], true)
+          else
+            Helpers.error("Cannot map function arguments to declared parameters", self, ArgumentError)
+          end
         end
         # Now we actually evaluate the codeblock in the correct env
         ret = matches[4].evaluate
@@ -650,13 +717,20 @@ class MiniParser < Parser
       def function(*args)
         # Open up a stack frame for the function call...local variables get stored here
         parser.stack << {}
+        # Array of parameters - either have a specified default value or not
         params = parameters.evaluate
-        # Make sure we have the correct number of arguments
-        if params.length != args.length then
-          Helpers.error("Expected #{params.length} arguments, got #{args.length}", self, ArgumentError)
-        end
+        # puts "Params: #{params}"
+        # puts "Args: #{args}"
+        # Iterate over each parameter - determine whether it is named or not
         params.each_with_index do |param, i|
-          parser.stack[-1][param] = Helpers.make_var(args[i], true)
+          if args[i]
+            parser.stack[-1][param["name"]] = Helpers.make_var(args[i]["value"], true)
+          # Else if args[i] does not exist but a default value was specified
+          elsif param["default"] != nil
+            parser.stack[-1][param["name"]] = Helpers.make_var(param["default"], true)
+          else
+            Helpers.error("Cannot map function arguments to declared parameters", self, ArgumentError)
+          end
         end
         ret = statements.evaluate
         parser.stack.pop()
@@ -675,9 +749,9 @@ class MiniParser < Parser
   end
  
   # Call a defined function
-  rule :call, :variable, "(", many?(:expr, ","), ")" do
+  rule :call, :variable, :arguments do
     def evaluate
-      args = expr.map {|tup| tup.evaluate }.compact
+      args = arguments.evaluate
       func = variable.evaluate
       # Helpers.error("Function '#{variable.get_name}' does not exist", self) unless func == Hash
       parser.locals = func["locals"]
@@ -692,7 +766,7 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:builtins, :call, :element_access, :number, :string, :bool, :array, :dict, :variable), [[:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==]] do
+  binary_operators_rule :infix, any(:builtins, :call, :element_access, :number, :string, :bool, :array, :dict, :variable), [[:**], [:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==, :!=]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
@@ -868,9 +942,9 @@ class MiniParser < Parser
   end
 
   # Negative numbers are parsed first
-  rule :number, "-", :number do
+  rule :number, "-", any(:number, :variable) do
     def evaluate
-      return -(number.evaluate)
+      return -(matches[2].evaluate)
     end
   end
 
