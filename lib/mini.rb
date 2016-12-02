@@ -154,21 +154,51 @@ class MiniParser < Parser
   # To figure out exactly how to store them
   rule :class_statement, "class", :lvalue, :inherit_statement?, "{", many?(:func_statement), "}" do
     def evaluate
+      # Basic error handling
+      if Helpers.dist_to_nearest_func(self) != nil
+        Helpers.error("Cannot declare a class inside a function", self)
+      end
+      # This is the variable that will store the declared class
+      class_name = lvalue.evaluate
+      class_var = {
+        "__type" => "class",
+        "methods" => {}
+      }
       # First define a self variable that can be accessed by functions in the class
-      # self = ???
       # Now evaluate all functions in the class' context
       func_statement.each do |f|
         # Get the bound function object
-        instance_function = f.get_function
+        method = f.get_function
+        name = f.get_name
+        # Add the method to the array of methods
+        class_var["methods"][name] = method
       end
-      nil
+      # Define an init method that handle the actual instantiation of the the object 
+      def __init(*args)
+        # if the init function is defined for the class
+        if class_var["methods"].has_key?("__init") 
+          # Call the init method 
+          class_var["methods"]["__init"].call(*args)
+        end
+      end
+      # Redefine the init method to the sugared one above
+      class_var["methods"]["__init"] = method(:__init)
+      # Add the class as a variable to the store
+      parser.add_var(class_name, class_var, true)
+      return nil
     end
   end
 
-  rule :class_instantiation, "new", :lvalue, :parameters do
+  rule :class_instantiation, "new", :variable, :arguments do
     def evaluate
-      params = parameters.evaluate
-      puts "Instantiating the #{lvalue} class" 
+      args = arguments.evaluate
+      class_var = variable.evaluate
+      obj_var = {
+        "__type" => "object",
+        "methods" => class_var["methods"],
+        "instance_vars" => {}
+      }
+      return obj_var
     end
   end
 
@@ -428,7 +458,7 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :eval, :doc, :char, :from_char, :raise, :len, :to_str, :to_int, :to_float, :type)
+  rule :builtins, any(:println, :print, :hash, :eval, :doc, :char, :from_char, :raise, :len, :to_str, :to_int, :to_float, :type)
 
   # A way to print a line
   rule :print, "print", "(", :expr?, ")" do
@@ -449,6 +479,12 @@ class MiniParser < Parser
       else
         puts()
       end
+    end
+  end
+
+  rule :hash, "hash", "(", :expr, ")" do
+    def evaluate
+      return expr.evaluate.hash
     end
   end
 
@@ -541,12 +577,39 @@ class MiniParser < Parser
   # ---------------------- HIGHER ORDER DATA STRUCTURES -------------------------- #
   # ------------------------------------------------------------------------------ #
 
+  rule :array, any(:array_comprehension, :simple_array)
+
   # Rule for arrays
-  rule :array, "[", many?(:expr, ","), "]" do
+  rule :simple_array, "[", many?(:expr, ","), "]" do
     def evaluate
       # This is basically like map()...returns a ruby array containing
       # the evaluated items in the array...can be nested !
       expr.collect {|o| o.evaluate}
+    end
+  end
+
+  rule :trailing_if, "if", :expr do
+    def evaluate
+      return expr.evaluate
+    end
+  end
+
+  # TODO: Figure out how you want to do this (lazy evaluation ?) 
+  # [ 1, 3, 5, 7, 9 ] -> basically a way to filter an array?
+  # [ x | x in range(10)] ... really need an "Iterable"
+  # [ x | x in range(10) if ( x < 5 )]
+  rule :array_comprehension, "[", :expr, "for", :lvalue, "in", :expr, :trailing_if?, "]" do
+    def evaluate
+      ret = []
+      expr[1].evaluate.each do |e|
+        # Add the item we are iterating over
+        parser.add_var(lvalue.evaluate, e, true) 
+        if trailing_if && trailing_if.evaluate || !trailing_if
+          ret << expr[0].evaluate
+        end
+        # TODO: remove that dummy var
+      end
+      return ret
     end
   end
 
@@ -601,18 +664,6 @@ class MiniParser < Parser
     end
 
     def get_name; variable.get_name end
-  end
-
-  # For example: test->name
-  # Really should have a concept of classes before doing this
-  rule :member_access, :variable, "->", :lvalue do
-    def evaluate
-      var = variable.evaluate 
-      Helpers.error("Variable does not exist", self) unless var != ""
-      Helpers.error("Variable #{variable.var_name} cannot be accessed with member syntax", self) unless 
-        (var.class == Hash || var.class == Class)
-      var[lvalue.evaluate]
-    end
   end
 
   # ------------------------------------------------------------------------------ #
@@ -759,6 +810,10 @@ class MiniParser < Parser
       # puts "FUNCTION: #{func}"
       func["function"].call(*args)
     end
+
+    def get_name; variable.get_name end
+    def get_arguments; arguments end
+
   end
 
   # ------------------------------------------------------------------------------ #
@@ -766,14 +821,14 @@ class MiniParser < Parser
   # ------------------------------------------------------------------------------ #
 
   # Deal with basic arithmetic and binary and comparisons
-  binary_operators_rule :infix, any(:builtins, :call, :element_access, :number, :string, :bool, :array, :dict, :variable), [[:**], [:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==, :!=]] do
+  binary_operators_rule :infix, any(:builtins, :call, :element_access, :nada, :number, :string, :bool, :array, :dict, :variable), [[:**], [:/, :*], [".", :+, :-, :%, :&, :|, :^, "and", "or"], [:<, :<=, :>, :>=, :==, :!=]] do
     def evaluate
       # Evaluating the left and right side recursively (with the
       # correct precedence) and checking to make sure the values are 
       # both acutally integers (not floats or whatever the hell else)
       l = left.evaluate; r = right.evaluate
-      Helpers.error("Cannot perform #{operator} on 'nada'", self, TypeError) unless
-        (l != nil && r != nil)
+      # Helpers.error("Cannot perform #{operator} on 'nada'", self, TypeError) unless
+        # (l != nil && r != nil)
       if operator.to_s == "."
         return l.to_s.send :+, r.to_s
       elsif operator.to_s == "or"
@@ -818,7 +873,35 @@ class MiniParser < Parser
     end
   end
 
-  rule :variable, any(:import_access, :simple_var)
+  rule :variable, any(:import_access, :member_access, :simple_var)
+
+  # For example: test->name
+  # Really should have a concept of classes before doing this
+  
+  rule :member_access, :simple_var, "->", :call do
+    def evaluate
+      object = simple_var.evaluate 
+      Helpers.error("Variable '#{simple_var.get_name}' cannot be accessed with member syntax", self) unless 
+        (object.class == Hash && object.has_key?("__type") && object["__type"] == "object")
+      method_name = call.get_name
+      args = call.get_arguments.evaluate
+      puts "Method: #{method_name}"
+      puts "Args: #{args}"
+      pp object
+    end
+  end
+
+  rule :member_access, :simple_var, "->", :lvalue do
+    def evaluate
+      object = matches[0].evaluate 
+      prop = lvalue.evaluate
+      Helpers.error("Variable '#{matches[0].get_name}' cannot be accessed with member syntax", self) unless 
+        (object.class == Hash && object.has_key?("__type") && object["__type"] == "object")
+      Helpers.error("Object '#{matches[0].get_name}' does not have property '#{prop}'", self) unless 
+        object["instance_vars"].has_key?(prop)
+      return object["instance_vars"][prop]
+    end
+  end
 
   rule :import_access, :lvalue, "::", :lvalue do
     def evaluate

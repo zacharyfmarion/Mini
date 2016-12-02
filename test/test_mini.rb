@@ -178,6 +178,12 @@ class TestMini < Minitest::Test
     assert_equal([1, 2], MiniParser.new.parse(str).evaluate )
   end
 
+  def test_array_comprehensions
+    str = 'let test = [1,2,3,4,5,6,7,8,9,10]
+          [x * 2 - 1 for x in test if x < 6]'
+    assert_equal([1, 3, 5, 7, 9], MiniParser.new.parse(str).evaluate )
+  end
+
   def test_dicts
     assert_equal({1 => "testing"}, MiniParser.new.parse('{1: "testing"}').evaluate )
     assert_equal({"this" => "is", "a" => "json", "dictionary" => "thing"}, 
@@ -185,7 +191,7 @@ class TestMini < Minitest::Test
   end
 
   def test_member_access
-    assert_equal("testing", MiniParser.new.parse('let test = {"test": "testing"} test -> test').evaluate )
+    skip "Need to implement classes first"
   end
 
   # Can access an array or string like so

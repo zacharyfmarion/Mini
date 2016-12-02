@@ -1,0 +1,19 @@
+/*************************************************************************
+  * A library for generating random numbers. Never had to implement a    *
+  * standard lib before so I'm sure these are all horibbly inefficient   *
+  * and buggy                                                            *
+  * @author: Zachary Marion                                              *
+  * @date: November 30, 2016                                             *
+  ***********************************************************************/
+
+let mut previous = 2222
+let RAND_MAX     = 100000
+let A            = 15342
+let C            = 45194
+
+export fun rand(seed: false) {
+  if (seed != false) { previous = seed }
+  let random_number = (previous * A + C) % RAND_MAX
+  previous = random_number
+  return random_number
+}
