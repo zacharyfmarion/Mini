@@ -395,7 +395,8 @@ class MiniParser < Parser
       key, value = lvalue_tuple.evaluate
       temp_key = nil; temp_val = nil
       dict = expr.evaluate
-      Helpers.error("#{dict.class} is not a suitable iterable (must be an Dict)", self) unless dict.class == Hash
+      Helpers.error("#{dict.class} is not a suitable iterable (must be an Dict)", self) unless 
+        dict.class == Hash
       if parser.store.has_key?(key) then temp_key = parser.store[key] end
       if parser.store.has_key?(value) then temp_val = parser.store[value] end
       dict.each do |k, v|
@@ -429,7 +430,8 @@ class MiniParser < Parser
       temp = nil
       i = 0 # This is the index of the array we are on
       arr = expr.evaluate
-      Helpers.error("#{arr.class} is not a suitable iterable (must be an Array)", self) unless arr.class == Array
+      Helpers.error("#{arr.class} is not a suitable iterable (must be an Array)", self) unless 
+        arr.class == Array
       if parser.store.has_key?(var) then
         temp = parser.store[var]
       end
@@ -458,7 +460,8 @@ class MiniParser < Parser
   # ------------------------------ BUILT-INS ------------------------------------- #
   # ------------------------------------------------------------------------------ #
 
-  rule :builtins, any(:println, :print, :hash, :eval, :doc, :char, :from_char, :raise, :len, :to_str, :to_int, :to_float, :type)
+  rule :builtins, any(:println, :print, :hash, :eval, :doc, :char, :from_char, :raise,
+                      :len, :to_str, :to_int, :to_float, :type)
 
   # A way to print a line
   rule :print, "print", "(", :expr?, ")" do
@@ -597,7 +600,7 @@ class MiniParser < Parser
   # TODO: Figure out how you want to do this (lazy evaluation ?) 
   # [ 1, 3, 5, 7, 9 ] -> basically a way to filter an array?
   # [ x | x in range(10)] ... really need an "Iterable"
-  # [ x | x in range(10) if ( x < 5 )]
+  # [ x | x in range(10) if x < 5 ]
   rule :array_comprehension, "[", :expr, "for", :lvalue, "in", :expr, :trailing_if?, "]" do
     def evaluate
       ret = []
@@ -1017,10 +1020,22 @@ class MiniParser < Parser
     def evaluate; nil end
   end
 
-  rule :string, /"|'/, /[^'"]*/, /"|'/ do
+  rule :string, any(:multiline_string, :simple_string)
+
+  rule :multiline_string, "`", /.*?(?=`)/m, "`" do
     def evaluate
       # Make sure we keep track of whitespace
-      matches[1].to_s + matches[2].to_s + matches[3].to_s
+      str = matches[1].to_s + matches[2].to_s + matches[3].to_s
+      # Now we deal with formatting:
+      str = str.gsub(/%\{(.*?(?=}))\}/) { parser.parse($1).evaluate.to_s}
+      return str
+    end
+  end
+
+  rule :simple_string, /"|'/, /[^'"]*/, /"|'/ do
+    def evaluate
+      # Make sure we keep track of whitespace
+      return matches[1].to_s + matches[2].to_s + matches[3].to_s
     end
   end
 

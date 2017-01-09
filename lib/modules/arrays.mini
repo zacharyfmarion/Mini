@@ -7,69 +7,100 @@
   ***********************************************************************/
 
 export fun concat(arr_a, arr_b) {
-  ==/ Concatenate two arrays together /==
+  ==/ Concatenate two arrays together 
+  
+      @param { Array } arr_a - The first array to concatenate
+      @param { Array } arr_b - The second array to concatenate
+      @return { Array } The concatenated array
+
+      Ex: concat([1,2,3], [4,5,6])
+        => [1, 2, 3, 4, 5, 6]
+  /==
   for (el in arr_b) { arr_a << el }
   return arr_a
 }
 
-export fun map(arr, func) {
-  ==/ Map an array through a given function /==
-  let ret = []
-  for (el in arr) { ret << func(el) }
-  return ret
-}
-
-export fun each(arr, func) {
-  ==/ Apply a function to each element in an array /==
-  for (el in arr) {
-    func(el) 
-  }
-}
-
-export fun max(arr) {
-  ==/ Compute the max element in an array /==
-  if (len(arr) == 0) { return nada }
-  let mut max = arr[0]
-  for (el in arr) { if (el > max) { max = el }}
-  return max
-}
-
-export fun min(arr) {
-  ==/ Compute the min element in an array /==
-  if (len(arr) == 0) { return nada }
-  let mut min = arr[0]
-  for (el in arr) { if (el < min) { min = el }}
-  return min
-}
-
-export fun sum(arr) {
-  ==/ Compute the sum of each element in the array /==
-  let mut sum = 0
-  for (el in arr) { sum = sum + el}
-  return sum
-}
-
-export fun filter(arr, func) {
-  ==/ Filter an array through a given function /==
-  let ret = []
-  for (el in arr) {
-    if (func(el)) { ret << el }
-  }
-  return ret
-}
-
 export fun reduce(arr, func) {
-  ==/ Reduce a function into a single expression /==
+  ==/ Reduce a function into a single expression 
+
+      @param { Array } arr - The array to reduce
+      @param { Function(a, b) -> Expression } func - The function which reduces the array
+      @return { Expression } A single value representing the reduces array
+
+      Ex: reduce([1,2,3,4,5], (a, b) => a + b) 
+        => 15
+  /==
   let mut ret = nada 
   if (len(arr) == 0) { nada }
   elseif (len(arr) == 1) { ret = arr[0] }
   else { 
     ret = arr[0]
-    for (el in slice(arr, 1, len(arr))) { 
-      ret = func(ret, el)
-    }
+    for (el in arr[1: -1]) { ret = func(ret, el) }
   }
   return ret
+}
+
+export fun filter(arr, func) {
+  ==/ Filter an array through a given function
+
+      @param { Array } arr - The array to reduce
+      @param { Function(a) -> Boolean } func - A function which returns a bool determining
+        whether or not the element should be included
+      @return { Expression } A single value representing the reduces array
+
+      Ex: filter([1,2,3,4,5], (a) => a < 4) 
+        => [1, 2, 3] 
+  /==
+  [ x for x in arr if func(x)]
+}
+
+export fun sum(arr) {
+  ==/ Compute the sum of each element in the array 
+      
+      @param { Array } arr - The array to sum
+      @return { Number } - The sum of the elements of the array
+      
+      Ex: sum([1,2,3,4,5])
+        => 15
+  /==
+  return reduce(arr, (a, b) => a + b)
+}
+
+export fun map(arr, func) {
+  ==/ Map an array through a given function 
+    
+      @param { Array } arr - The array we are mapping over
+      @param { Function(a) -> Expression } func - the function the array is mapped through
+      @return { Array } - The mapped array
+
+      Ex: map([1,2,3], (el) => el * 2)
+        => [2,4,6]
+  /==
+  return [func(x) for x in arr]
+}
+
+export fun each(arr, func) {
+  ==/ Apply a function to each element in an array /==
+  for (el in arr) { func(el) }
+}
+
+export fun range(start, end, step: 1) {
+  ==/ Generate an array over a certain range of numbers /==
+  let ret = []
+  for (let mut i = start; i < end; i = i + step) {
+    ret << i
+  }
+  return ret
+}
+
+export fun max(arr) {
+  ==/ Compute the max element in an array /==
+  return reduce(arr, (a, b) => a > b ? a : b )
+}
+
+export fun min(arr) {
+  ==/ Compute the min element in an array /==
+  return reduce(arr, (a, b) => a < b ? a : b )
 }
 
 export fun empty(arr) {

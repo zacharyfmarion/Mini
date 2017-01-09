@@ -39,6 +39,11 @@ class TestMini < Minitest::Test
   def test_strings
     assert_equal("string!", MiniParser.new.parse('"string!"').evaluate )
     assert_equal("string!", MiniParser.new.parse("'string!'").evaluate )
+    str = '
+          let test = [0,1,2,3,4,5] 
+          `zero: %{ test[0] }, one: %{ test[1] }`
+          '
+    assert_equal("zero: 0, one: 1", MiniParser.new.parse(str).evaluate )
   end
 
   def test_bools

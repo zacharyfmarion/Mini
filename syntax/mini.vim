@@ -49,6 +49,8 @@ syn region MiniComment start=/\v\/\*/ skip=/\v\\./ end=/\v\*\//
 syn region MiniString start=/\v"|'/ skip=/\v\\./ end=/\v"|'/
 " Docstrings
 syn region MiniString start=/\v\=\=\// skip=/\v\\./ end=/\v\/\=\=/
+" Interpolated multiline strings
+syn region MiniString start=/\v`/ skip=/\v\\./ end=/\v`/
 
 " Function def
 " TODO: Figure this out

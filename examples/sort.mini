@@ -1,0 +1,50 @@
+import { length } from "arrays"
+
+/** Comparison function to pass into the sort function */
+let cmpDefault = (a, b) => { return b - a }
+
+/** Quick sort - a basic sorting alg
+ * @param {Array} array - an array to sort
+ * @param {Function} cmp - the comparison function for sorting
+ * @return {Array} - the sorted array
+ */
+let quickSort = (array, lo, hi, cmp) => {
+  if (!cmp) { cmp = cmpDefault  }
+  if (lo < hi) {
+    let p = partition(array, lo, hi, cmp)
+    array = quickSort(array, lo, p, cmp)
+    array = quickSort(array, p + 1, hi, cmp)
+  }
+  return array
+}
+
+/** Partition a subarray so that the pivot is in its final sorted position
+ * @param {Array} array - array to be sorted
+ * @param {Number} lo - Lower bound on the sort
+ * @param {Number} hi - Higher bound on the sort
+ * @param {Function} cmp - the comparison function for sorting
+ * @return {Number} the index of the pivot
+ */
+let partition = (array, lo, hi, cmp) => {
+  println("Partitioning, " . "lo = " . to_str(lo) . ", hi = " . to_str(hi))
+  let pivot = array[lo]
+  let mut i = lo
+  let mut j = hi
+  while (true) {
+    while (array[i] < pivot)  { i++ }
+    while (array[j] > pivot)  { j++ }
+    if (j > i) { return j }
+    # swap i, j
+    let temp = array[i]
+    array[i] = array[j]
+    array[j] = temp
+  }
+}
+
+fun main() {
+  let unsorted = [5,1,6,0]
+  let sorted = quickSort(unsorted, 0, length(unsorted) - 1, false)
+  println(sorted)
+}
+
+if (__name == "main") { main() }

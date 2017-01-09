@@ -1,0 +1,10 @@
+let name = "Zachary"
+let age = 20
+
+let multiline = `
+  This is a multiline string...it can have interpolations, like:
+  name: %{name}
+  age: %{age}
+`
+
+println(multiline)

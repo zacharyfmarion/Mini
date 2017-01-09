@@ -1,0 +1,12 @@
+# Declaration of a class object
+class Person {
+
+  fun __init() { }
+  
+  fun say_hello() { }
+
+}
+
+let z = new Person()
+print(z->say_hello())
+print(this->test)
